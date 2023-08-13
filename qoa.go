@@ -1,5 +1,14 @@
 package qoa
 
+/*
+Copyright (c) 2023, braheezy - https://github.com/braheezy
+SPDX-License-Identifier: MIT
+
+QOA - The "Quite OK Audio" format for fast, lossy audio compression
+
+Most of the important comments in this file are not mine, they are the original author's.
+*/
+
 import (
 	"encoding/binary"
 )
