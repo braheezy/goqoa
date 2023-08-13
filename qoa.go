@@ -170,6 +170,8 @@ func clampS16(v int) int16 {
 	return int16(v)
 }
 
+// ~~~~~~~~~~~~~~~ Encoder ~~~~~~~~~~~~~~~~~~
+
 // encodeHeader encodes the QOA header.
 func (q *QOA) encodeHeader(header []byte) {
 	binary.BigEndian.PutUint32(header, QOAMagic)
@@ -299,7 +301,7 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	return p
 }
 
-func (q *QOA) encode(sampleData []int16) []byte {
+func (q *QOA) Encode(sampleData []int16) []byte {
 	if q.Samples == 0 || q.SampleRate == 0 || q.SampleRate > 0xffffff ||
 		q.Channels == 0 || q.Channels > QOAMaxChannels {
 		return nil
@@ -343,4 +345,137 @@ func (q *QOA) encode(sampleData []int16) []byte {
 		p += uint32(frameSize)
 	}
 	return bytes
+}
+
+// ~~~~~~~~~~~~~~~ Decoder ~~~~~~~~~~~~~~~~~~
+
+func (q *QOA) maxFrameSize() uint32 {
+	return qoaFrameSize(q.Channels, QOASlicesPerFrame)
+}
+
+func (q *QOA) decodeHeader(bytes []byte, size int) int {
+	if size < QOAMinFilesize {
+		return 0
+	}
+
+	p := uint32(0)
+	// Read the file header, verify the magic number ('qoaf') and read the total number of samples.
+	fileHeader := binary.BigEndian.Uint64(bytes)
+	p += 8
+
+	if (fileHeader >> 32) != QOAMagic {
+		return 0
+	}
+
+	q.Samples = uint32(fileHeader & 0xffffffff)
+	if q.Samples == 0 {
+		return 0
+	}
+
+	// Peek into the first frame header to get the number of channels and the SampleRate.
+	frameHeader := binary.BigEndian.Uint64(bytes[p:])
+	q.Channels = uint32(frameHeader>>56) & 0xff
+	q.SampleRate = uint32(frameHeader>>32) & 0xffffff
+
+	if q.Channels == 0 || q.Samples == 0 || q.SampleRate == 0 {
+		return 0
+	}
+
+	return 8
+}
+
+func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint) uint {
+	if size < 8+QOALMSLen*4*uint(q.Channels) {
+		return 0
+	}
+
+	p := uint(0)
+	*frameLen = 0
+
+	// Read and verify the frame header
+	frameHeader := binary.BigEndian.Uint64(bytes[:8])
+	p += 8
+	channels := uint32((frameHeader >> 56) & 0x000000FF)
+	sampleRate := uint32((frameHeader >> 32) & 0x00FFFFFF)
+	samples := uint32((frameHeader >> 16) & 0x0000FFFF)
+	frameSize := uint(frameHeader & 0x0000FFFF)
+
+	dataSize := int(frameSize) - 8 - QOALMSLen*4*int(channels)
+	numSlices := dataSize / 8
+	maxTotalSamples := numSlices * QOASliceLen
+
+	if channels != q.Channels ||
+		sampleRate != q.SampleRate ||
+		frameSize > size ||
+		int(samples*channels) > maxTotalSamples {
+		return 0
+	}
+
+	// Read the LMS state: 4 x 2 bytes history and 4 x 2 bytes weights per channel
+	for c := uint32(0); c < channels; c++ {
+		history := binary.BigEndian.Uint64(bytes[p:])
+		weights := binary.BigEndian.Uint64(bytes[p+8:])
+		p += 16
+
+		for i := 0; i < QOALMSLen; i++ {
+			q.LMS[c].History[i] = int16(history >> 48)
+			history <<= 16
+			q.LMS[c].Weights[i] = int16(weights >> 48)
+			weights <<= 16
+		}
+	}
+
+	// Decode all slices for all channels in this frame
+	for sampleIndex := uint32(0); sampleIndex < samples; sampleIndex += QOASliceLen {
+		for c := uint32(0); c < channels; c++ {
+			slice := binary.BigEndian.Uint64(bytes[p:])
+			p += 8
+
+			scaleFactor := (slice >> 60) & 0x0F
+			sliceStart := sampleIndex*channels + c
+			sliceEnd := uint32(clamp(int(sampleIndex)+QOASliceLen, 0, int(samples)))*channels + c
+
+			for si := sliceStart; si < sliceEnd; si += channels {
+				predicted := q.LMS[c].predict()
+				quantized := int((slice >> 57) & 0x07)
+				dequantized := qoaDequantTable[scaleFactor][quantized]
+				reconstructed := clampS16(predicted + dequantized)
+
+				sampleData[si] = reconstructed
+				slice <<= 3
+
+				q.LMS[c].update(reconstructed, int16(dequantized))
+			}
+		}
+	}
+
+	*frameLen = uint(samples)
+	return p
+}
+
+func (q *QOA) Decode(bytes []byte, size int) []int16 {
+	p := q.decodeHeader(bytes, size)
+	if p == 0 {
+		return nil
+	}
+
+	// Calculate the required size of the sample buffer and allocate
+	totalSamples := int(q.Samples) * int(q.Channels)
+	sampleData := make([]int16, totalSamples)
+
+	sampleIndex := 0
+	frameLen := uint(0)
+	frameSize := uint(0)
+
+	// Decode all frames
+	for p < size && frameSize > 0 && sampleIndex < int(q.Samples) {
+		samplePtr := sampleData[sampleIndex*int(q.Channels):]
+		frameSize = q.decodeFrame(bytes[p:], uint(size-p), samplePtr, &frameLen)
+
+		p += int(frameSize)
+		sampleIndex += int(frameLen)
+	}
+
+	q.Samples = uint32(sampleIndex)
+	return sampleData
 }

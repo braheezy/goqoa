@@ -168,3 +168,46 @@ func TestClampS16(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeHeader(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		bytes       []byte
+		size        int
+		expectedRet int
+		expectedQOA QOA
+	}{
+		{
+			desc:        "Valid header",
+			bytes:       []byte{0x71, 0x6f, 0x61, 0x66, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+			size:        16,
+			expectedRet: 8,
+			expectedQOA: QOA{
+				Samples:    1,
+				Channels:   1,
+				SampleRate: 131844,
+			},
+		},
+		{
+			desc:        "Invalid magic number",
+			bytes:       []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			size:        8,
+			expectedRet: 0,
+		},
+		{
+			desc:        "Invalid header size",
+			bytes:       []byte{},
+			size:        0,
+			expectedRet: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			q := QOA{}
+			ret := q.decodeHeader(tc.bytes, tc.size)
+			assert.Equal(t, tc.expectedRet, ret, "Incorrect return value")
+			assert.Equal(t, tc.expectedQOA, q, "Incorrect QOA data")
+		})
+	}
+}
