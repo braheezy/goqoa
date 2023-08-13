@@ -1,6 +1,7 @@
 package qoa
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -20,7 +21,9 @@ func TestEncodeHeader(t *testing.T) {
 		0x00, 0x01, 0x58, 0x88, // Samples: 88200 (0x15888)
 	}
 
-	header := qoa.encodeHeader()
+	header := make([]byte, 8)
+
+	qoa.encodeHeader(header)
 
 	if !reflect.DeepEqual(header, expectedHeader) {
 		t.Errorf("Header encoding mismatch.\nExpected: %#v\nGot:      %#v", expectedHeader, header)
@@ -97,6 +100,71 @@ func TestLMSUpdate(t *testing.T) {
 
 			assert.Equal(t, tc.expectedWeights, lms.Weights, "Incorrect updated weights")
 			assert.Equal(t, tc.expectedHistory, lms.History, "Incorrect updated history")
+		})
+	}
+}
+
+func TestDiv(t *testing.T) {
+	testCases := []struct {
+		v           int
+		scaleFactor int
+		expected    int
+	}{
+		{100, 1, 14},
+		{-100, 1, -14},
+		{70, 2, 3},
+		{-70, 2, -3},
+		{0, 2, 0},
+		{1, 0, 1},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("Test Case %d", i), func(t *testing.T) {
+			result := div(tc.v, tc.scaleFactor)
+			assert.Equal(t, tc.expected, result, "Incorrect result")
+		})
+	}
+}
+
+func TestClamp(t *testing.T) {
+	testCases := []struct {
+		v, min, max int
+		expected    int
+	}{
+		{5, 0, 10, 5},
+		{15, 0, 10, 10},
+		{-5, -10, 0, -5},
+		{-15, -10, 0, -10},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("Test Case %d", i), func(t *testing.T) {
+			result := clamp(tc.v, tc.min, tc.max)
+			assert.Equal(t, tc.expected, result, "Incorrect result")
+		})
+	}
+}
+
+func TestClampS16(t *testing.T) {
+	testCases := []struct {
+		v        int
+		expected int16
+	}{
+		{32767, 32767},
+		{32768, 32767},
+		{32769, 32767},
+		{-32768, -32768},
+		{-32769, -32768},
+		{-32770, -32768},
+		{10000, 10000},
+		{-15000, -15000},
+		{0, 0},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("Test Case %d", i), func(t *testing.T) {
+			result := clampS16(tc.v)
+			assert.Equal(t, tc.expected, result, "Incorrect result")
 		})
 	}
 }
