@@ -395,10 +395,10 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	return p
 }
 
-func (q *QOA) Encode(sampleData []int16) []byte {
+func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	if q.Samples == 0 || q.SampleRate == 0 || q.SampleRate > 0xffffff ||
 		q.Channels == 0 || q.Channels > QOAMaxChannels {
-		return nil
+		return nil, errors.New("invalid QOA parameters")
 	}
 
 	// Calculate the encoded size and allocate
@@ -438,14 +438,14 @@ func (q *QOA) Encode(sampleData []int16) []byte {
 		frameSize := q.encodeFrame(frameSamples, frameLen, bytes[p:])
 		p += uint32(frameSize)
 	}
-	return bytes
+	return bytes, nil
 }
 
 // ~~~~~~~~~~~~~~~ Decoder ~~~~~~~~~~~~~~~~~~
 
-func (q *QOA) maxFrameSize() uint32 {
-	return qoaFrameSize(q.Channels, QOASlicesPerFrame)
-}
+// func (q *QOA) maxFrameSize() uint32 {
+// 	return qoaFrameSize(q.Channels, QOASlicesPerFrame)
+// }
 
 func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	if size < QOAMinFilesize {
@@ -471,8 +471,8 @@ func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	q.Channels = uint32(frameHeader>>56) & 0xff
 	q.SampleRate = uint32(frameHeader>>32) & 0xffffff
 
-	if q.Channels == 0 || q.Samples == 0 || q.SampleRate == 0 {
-		return errors.New("qoa: invalid header")
+	if q.Channels == 0 || q.SampleRate == 0 {
+		return errors.New("qoa: first frame header is invalid")
 	}
 
 	return nil

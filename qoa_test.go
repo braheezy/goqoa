@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/go-audio/wav"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -198,16 +199,30 @@ func TestDecodeHeader(t *testing.T) {
 			bytes:    []byte{},
 			hasError: true,
 		},
+		{
+			desc:     "No samples",
+			bytes:    []byte{0x71, 0x6f, 0x61, 0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0, 0x00, 0x0, 0x0, 0x0, 0x00, 0x00, 0x00, 0x00},
+			hasError: true,
+		},
+		{
+			desc: "Bad first frame header",
+			bytes: []byte{
+				0x71, 0x6f, 0x61, 0x66, // Magic number: 'qoaf'
+				0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, // Total number of samples: 1
+				0x00, 0x00, 0x00, 0x00, // Frame header (invalid): Channels = 0, SampleRate = 0
+			},
+			hasError: true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			q := QOA{}
 			err := q.decodeHeader(tc.bytes, len(tc.bytes))
-			assert.Equal(t, tc.expectedQOA, q, "Incorrect QOA data")
 			if tc.hasError {
 				assert.NotNil(t, err, "Expected error")
 			} else {
+				assert.Equal(t, tc.expectedQOA, q, "Incorrect QOA data")
 				assert.Nil(t, err, "Unexpected error")
 			}
 		})
