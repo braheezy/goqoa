@@ -2,6 +2,8 @@ package qoa
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"reflect"
 	"testing"
 
@@ -13,7 +15,7 @@ func TestEncodeHeader(t *testing.T) {
 		Channels:   2,
 		SampleRate: 44100,
 		Samples:    88200,
-		LMS:        []qoaLMS{},
+		LMS:        [QOAMaxChannels]qoaLMS{},
 	}
 
 	expectedHeader := []byte{
@@ -173,41 +175,58 @@ func TestDecodeHeader(t *testing.T) {
 	testCases := []struct {
 		desc        string
 		bytes       []byte
-		size        int
-		expectedRet int
 		expectedQOA QOA
+		hasError    bool
 	}{
 		{
-			desc:        "Valid header",
-			bytes:       []byte{0x71, 0x6f, 0x61, 0x66, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-			size:        16,
-			expectedRet: 8,
+			desc:  "Valid header",
+			bytes: []byte{0x71, 0x6f, 0x61, 0x66, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 			expectedQOA: QOA{
 				Samples:    1,
 				Channels:   1,
 				SampleRate: 131844,
 			},
+			hasError: false,
 		},
 		{
-			desc:        "Invalid magic number",
-			bytes:       []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			size:        8,
-			expectedRet: 0,
+			desc:     "Invalid magic number",
+			bytes:    []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+			hasError: true,
 		},
 		{
-			desc:        "Invalid header size",
-			bytes:       []byte{},
-			size:        0,
-			expectedRet: 0,
+			desc:     "Invalid file size",
+			bytes:    []byte{},
+			hasError: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			q := QOA{}
-			ret := q.decodeHeader(tc.bytes, tc.size)
-			assert.Equal(t, tc.expectedRet, ret, "Incorrect return value")
+			err := q.decodeHeader(tc.bytes, len(tc.bytes))
 			assert.Equal(t, tc.expectedQOA, q, "Incorrect QOA data")
+			if tc.hasError {
+				assert.NotNil(t, err, "Expected error")
+			} else {
+				assert.Nil(t, err, "Unexpected error")
+			}
 		})
 	}
+}
+
+func TestDecode(t *testing.T) {
+	// Load the QOA audio file
+	qoaBytes, err := os.ReadFile("test.qoa")
+	if err != nil {
+		log.Fatalf("Error reading QOA file: %v", err)
+	}
+	// Decode the QOA audio data
+	q := QOA{}
+	_, err = q.Decode(qoaBytes, len(qoaBytes))
+
+	assert.Nil(t, err, "Unexpected error")
+	assert.NotEmpty(t, q.Samples, "Expected samples")
+	assert.NotEmpty(t, q.Channels, "Expected channels")
+	assert.NotEmpty(t, q.SampleRate, "Expected sample rate")
+	assert.NotEmpty(t, q.LMS[0], "Expected LMS data")
 }

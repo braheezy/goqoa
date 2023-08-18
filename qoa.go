@@ -9,8 +9,105 @@ QOA - The "Quite OK Audio" format for fast, lossy audio compression
 Most of the important comments in this file are not mine, they are the original author's.
 */
 
+/*
+-- Data Format
+
+QOA encodes pulse-code modulated (PCM) audio data with up to 255 channels,
+sample rates from 1 up to 16777215 hertz and a bit depth of 16 bits.
+
+The compression method employed in QOA is lossy; it discards some information
+from the uncompressed PCM data. For many types of audio signals this compression
+is "transparent", i.e. the difference from the original file is often not
+audible.
+
+QOA encodes 20 samples of 16 bit PCM data into slices of 64 bits. A single
+sample therefore requires 3.2 bits of storage space, resulting in a 5x
+compression (16 / 3.2).
+
+A QOA file consists of an 8 byte file header, followed by a number of frames.
+Each frame contains an 8 byte frame header, the current 16 byte en-/decoder
+state per channel and 256 slices per channel. Each slice is 8 bytes wide and
+encodes 20 samples of audio data.
+
+All values, including the slices, are big endian. The file layout is as follows:
+
+struct {
+	struct {
+		char     magic[4];         // magic bytes "qoaf"
+		uint32_t samples;          // samples per channel in this file
+	} file_header;
+
+	struct {
+		struct {
+			uint8_t  num_channels; // no. of channels
+			uint24_t samplerate;   // samplerate in hz
+			uint16_t fsamples;     // samples per channel in this frame
+			uint16_t fsize;        // frame size (includes this header)
+		} frame_header;
+
+		struct {
+			int16_t history[4];    // most recent last
+			int16_t weights[4];    // most recent last
+		} lms_state[num_channels];
+
+		qoa_slice_t slices[256][num_channels];
+
+	} frames[ceil(samples / (256 * 20))];
+} qoa_file_t;
+
+Each `qoa_slice_t` contains a quantized scalefactor `sf_quant` and 20 quantized
+residuals `qrNN`:
+
+.- QOA_SLICE -- 64 bits, 20 samples --------------------------/  /------------.
+|        Byte[0]         |        Byte[1]         |  Byte[2]  \  \  Byte[7]   |
+| 7  6  5  4  3  2  1  0 | 7  6  5  4  3  2  1  0 | 7  6  5   /  /    2  1  0 |
+|------------+--------+--------+--------+---------+---------+-\  \--+---------|
+|  sf_quant  |  qr00  |  qr01  |  qr02  |  qr03   |  qr04   | /  /  |  qr19   |
+`-------------------------------------------------------------\  \------------`
+
+Each frame except the last must contain exactly 256 slices per channel. The last
+frame may contain between 1 .. 256 (inclusive) slices per channel. The last
+slice (for each channel) in the last frame may contain less than 20 samples; the
+slice still must be 8 bytes wide, with the unused samples zeroed out.
+
+Channels are interleaved per slice. E.g. for 2 channel stereo:
+slice[0] = L, slice[1] = R, slice[2] = L, slice[3] = R ...
+
+A valid QOA file or stream must have at least one frame. Each frame must contain
+at least one channel and one sample with a samplerate between 1 .. 16777215
+(inclusive).
+
+If the total number of samples is not known by the encoder, the samples in the
+file header may be set to 0x00000000 to indicate that the encoder is
+"streaming". In a streaming context, the samplerate and number of channels may
+differ from frame to frame. For static files (those with samples set to a
+non-zero value), each frame must have the same number of channels and same
+samplerate.
+
+Note that this implementation of QOA only handles files with a known total
+number of samples.
+
+A decoder should support at least 8 channels. The channel layout for channel
+counts 1 .. 8 is:
+
+	1. Mono
+	2. L, R
+	3. L, R, C
+	4. FL, FR, B/SL, B/SR
+	5. FL, FR, C, B/SL, B/SR
+	6. FL, FR, C, LFE, B/SL, B/SR
+	7. FL, FR, C, LFE, B, SL, SR
+	8. FL, FR, C, LFE, BL, BR, SL, SR
+
+QOA predicts each audio sample based on the previously decoded ones using a
+"Sign-Sign Least Mean Squares Filter" (LMS). This prediction plus the
+dequantized residual forms the final output sample.
+
+*/
+
 import (
 	"encoding/binary"
+	"errors"
 )
 
 // QOA constants
@@ -34,15 +131,12 @@ type qoaLMS struct {
 	Weights [QOALMSLen]int16
 }
 
-// qoaSlice represents a quantized slice of audio data.
-type qoaSlice [QOASliceLen]byte
-
 // QOA stores the QOA audio file description.
 type QOA struct {
 	Channels   uint32
 	SampleRate uint32
 	Samples    uint32
-	LMS        []qoaLMS
+	LMS        [QOAMaxChannels]qoaLMS
 	errorCount int
 }
 
@@ -353,9 +447,9 @@ func (q *QOA) maxFrameSize() uint32 {
 	return qoaFrameSize(q.Channels, QOASlicesPerFrame)
 }
 
-func (q *QOA) decodeHeader(bytes []byte, size int) int {
+func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	if size < QOAMinFilesize {
-		return 0
+		return errors.New("qoa: file too small")
 	}
 
 	p := uint32(0)
@@ -364,12 +458,12 @@ func (q *QOA) decodeHeader(bytes []byte, size int) int {
 	p += 8
 
 	if (fileHeader >> 32) != QOAMagic {
-		return 0
+		return errors.New("qoa: invalid magic number")
 	}
 
 	q.Samples = uint32(fileHeader & 0xffffffff)
 	if q.Samples == 0 {
-		return 0
+		return errors.New("qoa: no samples found")
 	}
 
 	// Peek into the first frame header to get the number of channels and the SampleRate.
@@ -378,15 +472,15 @@ func (q *QOA) decodeHeader(bytes []byte, size int) int {
 	q.SampleRate = uint32(frameHeader>>32) & 0xffffff
 
 	if q.Channels == 0 || q.Samples == 0 || q.SampleRate == 0 {
-		return 0
+		return errors.New("qoa: invalid header")
 	}
 
-	return 8
+	return nil
 }
 
-func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint) uint {
+func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint) (uint, error) {
 	if size < 8+QOALMSLen*4*uint(q.Channels) {
-		return 0
+		return 0, errors.New("decodeFrame: too small")
 	}
 
 	p := uint(0)
@@ -408,7 +502,7 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 		sampleRate != q.SampleRate ||
 		frameSize > size ||
 		int(samples*channels) > maxTotalSamples {
-		return 0
+		return 0, errors.New("decodeFrame: invalid header")
 	}
 
 	// Read the LMS state: 4 x 2 bytes history and 4 x 2 bytes weights per channel
@@ -450,14 +544,15 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 	}
 
 	*frameLen = uint(samples)
-	return p
+	return p, nil
 }
 
-func (q *QOA) Decode(bytes []byte, size int) []int16 {
-	p := q.decodeHeader(bytes, size)
-	if p == 0 {
-		return nil
+func (q *QOA) Decode(bytes []byte, size int) ([]int16, error) {
+	err := q.decodeHeader(bytes, size)
+	if err != nil {
+		return nil, err
 	}
+	p := 8
 
 	// Calculate the required size of the sample buffer and allocate
 	totalSamples := int(q.Samples) * int(q.Channels)
@@ -468,14 +563,21 @@ func (q *QOA) Decode(bytes []byte, size int) []int16 {
 	frameSize := uint(0)
 
 	// Decode all frames
-	for p < size && frameSize > 0 && sampleIndex < int(q.Samples) {
+	for {
 		samplePtr := sampleData[sampleIndex*int(q.Channels):]
-		frameSize = q.decodeFrame(bytes[p:], uint(size-p), samplePtr, &frameLen)
+		frameSize, err = q.decodeFrame(bytes[p:], uint(size-p), samplePtr, &frameLen)
+		if err != nil {
+			return nil, err
+		}
 
 		p += int(frameSize)
 		sampleIndex += int(frameLen)
+
+		if p < size && frameSize > 0 && sampleIndex < int(q.Samples) {
+			break
+		}
 	}
 
 	q.Samples = uint32(sampleIndex)
-	return sampleData
+	return sampleData, nil
 }
