@@ -230,3 +230,36 @@ func TestDecode(t *testing.T) {
 	assert.NotEmpty(t, q.SampleRate, "Expected sample rate")
 	assert.NotEmpty(t, q.LMS[0], "Expected LMS data")
 }
+
+func TestEncode(t *testing.T) {
+	wavFile, err := os.Open("test.wav")
+	if err != nil {
+		log.Fatalf("Error reading WAV file: %v", err)
+	}
+	defer wavFile.Close()
+
+	// Decode WAV audio data
+	wavDecoder := wav.NewDecoder(wavFile)
+	wavBuffer, err := wavDecoder.FullPCMBuffer()
+	if err != nil {
+		log.Fatalf("Error decoding WAV file: %v", err)
+	}
+
+	q := QOA{
+		Channels:   uint32(wavBuffer.Format.NumChannels),
+		SampleRate: uint32(wavBuffer.Format.SampleRate),
+		Samples:    uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels),
+	}
+
+	// Convert the audio data to int16 (QOA format)
+	int16AudioData := make([]int16, len(wavBuffer.Data))
+	for i, val := range wavBuffer.Data {
+		int16AudioData[i] = int16(val)
+	}
+
+	// Encode the audio data using QOA
+	qoaEncodedData, err := q.Encode(int16AudioData)
+
+	assert.Nil(t, err, "Unexpected error")
+	assert.NotEmpty(t, qoaEncodedData, "Expected QOA encoded data")
+}
