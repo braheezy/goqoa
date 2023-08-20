@@ -123,7 +123,7 @@ type QOA struct {
 	SampleRate uint32
 	Samples    uint32
 	LMS        [QOAMaxChannels]qoaLMS
-	errorCount int
+	ErrorCount int
 }
 
 /*

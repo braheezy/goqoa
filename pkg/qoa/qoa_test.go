@@ -246,8 +246,8 @@ func TestBasicDecode(t *testing.T) {
 		log.Fatalf("Error reading QOA file: %v", err)
 	}
 	// Decode the QOA audio data
-	q := QOA{}
-	_, err = q.Decode(qoaBytes)
+	q := &QOA{}
+	q, _, err = Decode(qoaBytes)
 
 	assert.Nil(t, err, "Unexpected error")
 	assert.NotEmpty(t, q.Samples, "Expected samples")
@@ -270,11 +270,11 @@ func TestBasicEncode(t *testing.T) {
 		log.Fatalf("Error decoding WAV file: %v", err)
 	}
 
-	q := QOA{
-		Channels:   uint32(wavBuffer.Format.NumChannels),
-		SampleRate: uint32(wavBuffer.Format.SampleRate),
-		Samples:    uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels),
-	}
+	samples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+	q := NewEncoder(
+		uint32(wavBuffer.Format.SampleRate),
+		uint32(wavBuffer.Format.NumChannels),
+		samples)
 
 	// Convert the audio data to int16 (QOA format)
 	int16AudioData := make([]int16, len(wavBuffer.Data))
@@ -306,11 +306,11 @@ func TestWavToQoa(t *testing.T) {
 		log.Fatalf("Error decoding WAV file: %v", err)
 	}
 
-	q := QOA{
-		Channels:   uint32(wavBuffer.Format.NumChannels),
-		SampleRate: uint32(wavBuffer.Format.SampleRate),
-		Samples:    uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels),
-	}
+	samples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+	q := NewEncoder(
+		uint32(wavBuffer.Format.SampleRate),
+		uint32(wavBuffer.Format.NumChannels),
+		samples)
 
 	// Convert the audio data to int16 (QOA format)
 	int16AudioData := make([]int16, len(wavBuffer.Data))
@@ -342,8 +342,8 @@ func TestQoaWav(t *testing.T) {
 	}
 
 	// Decode the QOA audio data
-	q := QOA{}
-	decodedData, err := q.Decode(qoaBytes)
+	q := &QOA{}
+	q, decodedData, err := Decode(qoaBytes)
 	if err != nil {
 		log.Fatalf("Error decoding QOA data: %v", err)
 	}

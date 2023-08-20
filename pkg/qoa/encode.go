@@ -119,7 +119,7 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 			prevScaleFactor[c] = bestScaleFactor
 
 			q.LMS[c] = bestLMS
-			q.errorCount += bestError
+			q.ErrorCount += bestError
 
 			/* If this slice was shorter than QOA_SLICE_LEN, we have to left-
 			shift all encoded data, to ensure the rightmost bits are the empty
@@ -168,7 +168,7 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	// Encode the header and go through all frames
 	q.encodeHeader(bytes)
 	p := uint32(8)
-	q.errorCount = 0
+	q.ErrorCount = 0
 
 	frameLen := uint32(QOAFrameLen)
 	for sampleIndex := uint32(0); sampleIndex < q.Samples; sampleIndex += uint32(frameLen) {
@@ -178,4 +178,12 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 		p += uint32(frameSize)
 	}
 	return bytes, nil
+}
+
+func NewEncoder(sampleRate, channels, samples uint32) *QOA {
+	return &QOA{
+		SampleRate: sampleRate,
+		Channels:   channels,
+		Samples:    samples,
+	}
 }

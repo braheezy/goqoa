@@ -105,11 +105,12 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 	return p, nil
 }
 
-func (q *QOA) Decode(bytes []byte) ([]int16, error) {
+func Decode(bytes []byte) (*QOA, []int16, error) {
+	q := &QOA{}
 	size := len(bytes)
 	err := q.decodeHeader(bytes, size)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	p := 8
 
@@ -126,7 +127,7 @@ func (q *QOA) Decode(bytes []byte) ([]int16, error) {
 		samplePtr := sampleData[sampleIndex*q.Channels:]
 		frameSize, err = q.decodeFrame(bytes[p:], uint(size-p), samplePtr, &frameLen)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		p += int(frameSize)
@@ -138,5 +139,5 @@ func (q *QOA) Decode(bytes []byte) ([]int16, error) {
 	}
 
 	q.Samples = sampleIndex
-	return sampleData, nil
+	return q, sampleData, nil
 }

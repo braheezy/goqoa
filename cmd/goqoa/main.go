@@ -41,8 +41,7 @@ func main() { // Load the QOA audio file
 	}
 
 	// Decode the QOA audio data
-	q := qoa.QOA{}
-	qoaAudioData, err := q.Decode(qoaBytes)
+	_, qoaAudioData, err := qoa.Decode(qoaBytes)
 	if err != nil {
 		log.Fatalf("Error decoding QOA data: %v", err)
 	}
