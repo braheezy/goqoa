@@ -573,7 +573,7 @@ func (q *QOA) Decode(bytes []byte, size int) ([]int16, error) {
 		p += int(frameSize)
 		sampleIndex += int(frameLen)
 
-		if p < size && frameSize > 0 && sampleIndex < int(q.Samples) {
+		if !(frameSize > 0 && sampleIndex < uint(q.Samples)) {
 			break
 		}
 	}
