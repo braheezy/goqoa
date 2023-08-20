@@ -1,4 +1,4 @@
-package main
+package qoa
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed test/*
+//go:embed testdata/*
 var testFiles embed.FS
 
 func TestEncodeHeader(t *testing.T) {
@@ -241,7 +241,7 @@ func TestDecodeHeader(t *testing.T) {
 
 func TestBasicDecode(t *testing.T) {
 	// Load the QOA audio file
-	qoaBytes, err := os.ReadFile("test/sting_loss_piano.qoa")
+	qoaBytes, err := os.ReadFile("testdata/sting_loss_piano.qoa")
 	if err != nil {
 		log.Fatalf("Error reading QOA file: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestBasicDecode(t *testing.T) {
 }
 
 func TestBasicEncode(t *testing.T) {
-	wavFile, err := os.Open("test/sting_loss_piano.wav")
+	wavFile, err := os.Open("testdata/sting_loss_piano.wav")
 	if err != nil {
 		log.Fatalf("Error reading WAV file: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestBasicEncode(t *testing.T) {
 
 func TestWavToQoa(t *testing.T) {
 	// Read wav file
-	wavFile, err := testFiles.Open("test/sting_loss_piano.wav")
+	wavFile, err := testFiles.Open("testdata/sting_loss_piano.wav")
 	if err != nil {
 		log.Fatalf("Error reading WAV file: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestWavToQoa(t *testing.T) {
 	}
 
 	// Read the content of the golden.qoa file
-	goldenQOAData, err := testFiles.ReadFile("test/sting_loss_piano.qoa")
+	goldenQOAData, err := testFiles.ReadFile("testdata/sting_loss_piano.qoa")
 	if err != nil {
 		log.Fatalf("Error reading golden.qoa file: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestWavToQoa(t *testing.T) {
 
 func TestQoaWav(t *testing.T) {
 	// Load the QOA audio file
-	qoaBytes, err := os.ReadFile("test/sting_loss_piano.qoa")
+	qoaBytes, err := os.ReadFile("testdata/sting_loss_piano.qoa")
 	if err != nil {
 		log.Fatalf("Error reading QOA file: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestQoaWav(t *testing.T) {
 	// Close now or the checksum later will be off.
 	wavEncoder.Close()
 
-	expectedData, _ := testFiles.ReadFile("test/sting_loss_piano.qoa.wav")
+	expectedData, _ := testFiles.ReadFile("testdata/sting_loss_piano.qoa.wav")
 	if err != nil {
 		log.Fatal(err)
 	}

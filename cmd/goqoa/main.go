@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/braheezy/qoa/pkg/qoa"
+
 	"github.com/ebitengine/oto/v3"
 )
 
@@ -39,7 +41,7 @@ func main() { // Load the QOA audio file
 	}
 
 	// Decode the QOA audio data
-	q := QOA{}
+	q := qoa.QOA{}
 	qoaAudioData, err := q.Decode(qoaBytes)
 	if err != nil {
 		log.Fatalf("Error decoding QOA data: %v", err)
