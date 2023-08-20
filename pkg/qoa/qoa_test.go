@@ -334,7 +334,7 @@ func TestWavToQoa(t *testing.T) {
 
 }
 
-func TestQoaWav(t *testing.T) {
+func TestQoaToWav(t *testing.T) {
 	// Load the QOA audio file
 	qoaBytes, err := os.ReadFile("testdata/sting_loss_piano.qoa")
 	if err != nil {
