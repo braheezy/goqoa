@@ -1,4 +1,4 @@
-package qoa
+package main
 
 /*
 Copyright (c) 2023, braheezy - https://github.com/braheezy

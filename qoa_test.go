@@ -1,4 +1,4 @@
-package qoa
+package main
 
 import (
 	"fmt"
