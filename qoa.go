@@ -176,7 +176,7 @@ The rounding employed here is "to nearest, ties away from zero",  i.e. positive
 and negative values are treated symmetrically.
 */
 
-var qoaDequantTable = [16][8]int{
+var qoaDequantTable = [16][8]int16{
 	{1, -1, 3, -3, 5, -5, 7, -7},
 	{5, -5, 18, -18, 32, -32, 49, -49},
 	{16, -16, 53, -53, 95, -95, 147, -147},
@@ -357,15 +357,15 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 					clamped := clamp(scaled, -8, 8)
 					quantized := qoaQuantTable[clamped+8]
 					dequantized := qoaDequantTable[scaleFactor][quantized]
-					reconstructed := clampS16(predicted + dequantized)
+					reconstructed := clampS16(predicted + int(dequantized))
 
-					err := int64(sample - int(reconstructed))
-					currentError += uint64(err * err)
+					errDelta := int64(sample - int(reconstructed))
+					currentError += uint64(errDelta * errDelta)
 					if currentError > uint64(bestError) {
 						break
 					}
 
-					lms.update(reconstructed, int16(dequantized))
+					lms.update(reconstructed, dequantized)
 					slice = (slice << 3) | uint64(quantized)
 				}
 
@@ -478,7 +478,7 @@ func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	return nil
 }
 
-func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint) (uint, error) {
+func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint32) (uint, error) {
 	if size < 8+QOALMSLen*4*uint(q.Channels) {
 		return 0, errors.New("decodeFrame: too small")
 	}
@@ -533,21 +533,22 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 				predicted := q.LMS[c].predict()
 				quantized := int((slice >> 57) & 0x07)
 				dequantized := qoaDequantTable[scaleFactor][quantized]
-				reconstructed := clampS16(predicted + dequantized)
+				reconstructed := clampS16(predicted + int(dequantized))
 
 				sampleData[si] = reconstructed
 				slice <<= 3
 
-				q.LMS[c].update(reconstructed, int16(dequantized))
+				q.LMS[c].update(reconstructed, dequantized)
 			}
 		}
 	}
 
-	*frameLen = uint(samples)
+	*frameLen = samples
 	return p, nil
 }
 
-func (q *QOA) Decode(bytes []byte, size int) ([]int16, error) {
+func (q *QOA) Decode(bytes []byte) ([]int16, error) {
+	size := len(bytes)
 	err := q.decodeHeader(bytes, size)
 	if err != nil {
 		return nil, err
@@ -555,29 +556,29 @@ func (q *QOA) Decode(bytes []byte, size int) ([]int16, error) {
 	p := 8
 
 	// Calculate the required size of the sample buffer and allocate
-	totalSamples := int(q.Samples) * int(q.Channels)
+	totalSamples := q.Samples * q.Channels
 	sampleData := make([]int16, totalSamples)
 
-	sampleIndex := 0
-	frameLen := uint(0)
+	sampleIndex := uint32(0)
+	frameLen := uint32(0)
 	frameSize := uint(0)
 
 	// Decode all frames
 	for {
-		samplePtr := sampleData[sampleIndex*int(q.Channels):]
+		samplePtr := sampleData[sampleIndex*q.Channels:]
 		frameSize, err = q.decodeFrame(bytes[p:], uint(size-p), samplePtr, &frameLen)
 		if err != nil {
 			return nil, err
 		}
 
 		p += int(frameSize)
-		sampleIndex += int(frameLen)
+		sampleIndex += frameLen
 
-		if !(frameSize > 0 && sampleIndex < uint(q.Samples)) {
+		if !(frameSize > 0 && sampleIndex < q.Samples) {
 			break
 		}
 	}
 
-	q.Samples = uint32(sampleIndex)
+	q.Samples = sampleIndex
 	return sampleData, nil
 }
