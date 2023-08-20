@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "1.0.0"
+
 var rootCmd = &cobra.Command{
 	Use:   "goqoa",
 	Short: "A simple QOA utility.",
