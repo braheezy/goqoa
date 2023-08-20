@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/braheezy/goqoa/pkg/qoa"
 	"github.com/go-audio/audio"
@@ -17,6 +18,7 @@ import (
 var convertCmd = &cobra.Command{
 	Use:   "convert <input-file> <output-file>",
 	Short: "Convert between QOA and other audio formats",
+	Long:  fmt.Sprintf("Convert between QOA and other audio formats. The supported audio formats are:\n%v", strings.Join(supportedFormats, "\n")),
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		inputFile := args[0]
@@ -28,6 +30,7 @@ var convertCmd = &cobra.Command{
 			fmt.Println("Unsupported conversion")
 		}
 	},
+	DisableFlagsInUseLine: true,
 }
 
 var supportedFormats = []string{".qoa", ".wav"}
