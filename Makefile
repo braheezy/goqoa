@@ -36,9 +36,7 @@ define help_text
 $(PURPLE)$(BOLD)Targets:$(END)
   - $(call command-style,all,    Build $(PACKAGE) for all targets (Linux, Windows, Mac, 64-bit))
   - $(call command-style,build,  Build $(PACKAGE) for current host architecture)
-  - $(call command-style,run,    Build and run $(PACKAGE) for current host)
   - $(call command-style,install,Build and install $(PACKAGE) for current host)
-  - $(call command-style,debug,  Run a dlv debug headless session)
   - $(call command-style,test,   Run all tests)
   - $(call command-style,clean,  Delete built artifacts)
   - $(call command-style,[help], Print this help)
@@ -85,12 +83,6 @@ test:
 	@echo -e "$(YELLOW)Testing...$(END)"
 	@go test $(TEST_FILES)
 	@echo -e "$(GREEN)✅ Test is complete!$(END)"
-
-run: $(BIN)
-	@exec $?
-
-debug:
-	@dlv debug --listen ":8651" --headless $(BUILD_ENTRY)
 
 install: $(BIN)
 	@echo -e "$(YELLOW)🚀 Installing $(BIN) to appropriate location...$(END)"
