@@ -1,6 +1,6 @@
 module github.com/braheezy/goqoa
 
-go 1.20
+go 1.21
 
 require (
 	github.com/ebitengine/oto/v3 v3.0.0
