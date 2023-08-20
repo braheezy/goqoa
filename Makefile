@@ -7,7 +7,7 @@ GOINSTALL := $(GOCMD) install
 GOARCH := amd64
 
 # Build definitions
-BUILD_ENTRY := $(PWD)/cmd/$(PACKAGE)
+BUILD_ENTRY := $(PWD)
 BIN_DIR := $(PWD)/bin
 
 # Determine the file extension based on the platform
