@@ -21,6 +21,11 @@ var convertCmd = &cobra.Command{
 	Long:  fmt.Sprintf("Convert between QOA and other audio formats. The supported audio formats are:\n%v", strings.Join(supportedFormats, "\n")),
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
+		if quiet {
+			// Redirect output to /dev/null
+			os.Stdout, _ = os.Open(os.DevNull)
+		}
+
 		inputFile := args[0]
 		outputFile := args[1]
 

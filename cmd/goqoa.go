@@ -22,6 +22,12 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var quiet bool
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress command output")
+}
+
 func Execute() error {
 	return rootCmd.Execute()
 }
