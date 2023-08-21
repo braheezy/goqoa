@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GO111MODULE: "on"
-      CGO_ENABLED: 1
+      CGO_ENABLED: ${{ if eq(matrix.os, 'ubuntu-latest') }}1{{ else }}0{{ endif }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,11 +35,6 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             sudo apt-get update
             sudo apt-get install -y libasound2-dev
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            brew update
-            brew install alsa-lib
-          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-            choco install -y alsa-lib
           fi
 
       - name: Build
