@@ -48,7 +48,6 @@ jobs:
           go-version: "1.21"
 
       - name: Install dependencies
-        shell: bash
         run: |
           go get ./...
           sudo apt-get update
@@ -76,6 +75,11 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev
 
       - name: Release Go binaries on tags
         uses: goreleaser/goreleaser-action@v4
