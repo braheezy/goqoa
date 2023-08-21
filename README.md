@@ -25,13 +25,22 @@ Use "goqoa [command] --help" for more information about a command.
 ```
 
 ## Install
-Install directly with Go:
+First, install prerequisites for your platform if needed:
+
+    # Fedora
+    yum install gcc alsa-lib-devel
+    # Debian
+    apt-get install gcc pkg-config libasound2-dev
+
+Then, install directly with Go:
 
     go install github.com/braheezy/goqoa@latest
 
+Or find a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page.
+
 ## Development
 You'll need the following:
-- Go 1.21+
+- Go 1.21+ because that's when `slices` got merged to standard library
 - `make`
 - The [dependencies that `oto` requires](https://github.com/ebitengine/oto#prerequisite)
 
