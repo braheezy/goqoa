@@ -59,13 +59,15 @@ jobs:
           sudo chmod +x /usr/bin/http
 
       - name: Build
-        run: go build -v ./...
+        run: go build .
 
       - name: Go Test
         run: go test -v ./...
 
       - name: Spec Test
-        run: bash check_spec.sh
+        run: |
+          sudo cp goqoa /usr/bin/
+          bash check_spec.sh
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
