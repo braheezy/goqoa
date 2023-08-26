@@ -24,7 +24,11 @@ size_compare() {
     fi
 }
 
-# Extract 10 random songs
+if [ ! -f $spec_zip ]; then
+    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip 2>/dev/null
+fi
+
+# Extract random songs
 selected_songs=$(unzip -Z1 "$spec_zip" '*.wav' -x '*.qoa.wav' | shuf -n "$num_songs")
 
 for song in $selected_songs; do
