@@ -24,8 +24,12 @@ Flags:
 Use "goqoa [command] --help" for more information about a command.
 ```
 
+[This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
+
 ## Install
-First, install prerequisites for your platform if needed:
+The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
+
+Otherwise, install prerequisites for your platform:
 
     # Fedora
     yum install gcc alsa-lib-devel
@@ -35,8 +39,6 @@ First, install prerequisites for your platform if needed:
 Then, install directly with Go:
 
     go install github.com/braheezy/goqoa@latest
-
-Or find a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page.
 
 ## Development
 You'll need the following:
