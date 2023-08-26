@@ -199,6 +199,9 @@ func (lms *qoaLMS) predict() int {
 }
 
 func (lms *qoaLMS) update(sample int16, residual int16) {
+	// NB: From the spec author:
+	// "Note that the right shift residual >> 4 in qoa_lms_update() is just there to ensure that the weights will stay within the 16 bit range (I have not proven that they do, but with all my test samples: they do)
+	// The right shift prediction >> 13 in qoa_lms_predict() above then does the rest.
 	delta := residual >> 4
 	for i := 0; i < QOALMSLen; i++ {
 		if lms.History[i] < 0 {
