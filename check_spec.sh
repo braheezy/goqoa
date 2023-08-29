@@ -26,11 +26,8 @@ size_compare() {
 
 if [ ! -f $spec_zip ]; then
     echo "Downloading $spec_zip..."
-    http --version
-    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip -o $spec_zip --verbose
+    http --download https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
 fi
-
-ls -lh
 
 # Extract random songs
 selected_songs=$(unzip -Z1 "$spec_zip" '*.wav' -x '*.qoa.wav' | shuf -n "$num_songs")
