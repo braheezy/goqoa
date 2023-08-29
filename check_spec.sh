@@ -26,7 +26,11 @@ size_compare() {
 
 if [ ! -f $spec_zip ]; then
     echo "Downloading $spec_zip..."
-    curl -O https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+    if command -V http &>/dev/null; then
+        http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+    else
+        curl -q -O https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+    fi
 fi
 
 # Extract random songs
