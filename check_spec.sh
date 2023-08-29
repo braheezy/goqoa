@@ -25,8 +25,8 @@ size_compare() {
 }
 
 if [ ! -f $spec_zip ]; then
-    echo "Downloading spec zip..."
-    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip 2>/dev/null
+    echo "Downloading $spec_zip..."
+    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
 fi
 
 # Extract random songs
