@@ -42,6 +42,38 @@ Then, install directly with Go:
 
     go install github.com/braheezy/goqoa@latest
 
+## `qoa` Package
+Decode a `.qoa` file:
+```go
+data, _ := os.ReadFile("groovy-tunes.qoa")
+qoaMetadata, decodedData, err = qoa.Decode(inputData)
+// Do stuff with decodedData
+```
+
+Or encode audio samples. This example shows a WAV file:
+```go
+// Read a WAV
+data, _ := os.ReadFile("groovy-tunes.wav")
+wavReader := bytes.NewReader(data)
+wavDecoder := wav.NewDecoder(wavReader)
+wavBuffer, err := wavDecoder.FullPCMBuffer()
+
+// Figure out audio metadata and create a new QOA encoder using the info
+numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+qoaFormat := qoa.NewEncoder(
+  uint32(wavBuffer.Format.SampleRate),
+  uint32(wavBuffer.Format.NumChannels),
+  samples)
+// Convert the audio data to int16 (QOA format)
+decodedData = make([]int16, len(wavBuffer.Data))
+for i, val := range wavBuffer.Data {
+  decodedData[i] = int16(val)
+}
+
+// Finally, encode the audio data
+qoaEncodedData, err := q.Encode(decodedData)
+```
+
 ## Development
 You'll need the following:
 - Go 1.21+ because that's when `slices` got merged to standard library

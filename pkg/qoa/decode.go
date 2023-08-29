@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// decodeHeader decodes the QOA header and initializes the QOA struct with header information.
 func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	if size < QOAMinFilesize {
 		return errors.New("qoa: file too small")
@@ -36,6 +37,7 @@ func (q *QOA) decodeHeader(bytes []byte, size int) error {
 	return nil
 }
 
+// decodeFrame decodes a QOA frame and returns the size of the decoded frame.
 func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen *uint32) (uint, error) {
 	if size < 8+QOALMSLen*4*uint(q.Channels) {
 		return 0, errors.New("decodeFrame: too small")
@@ -105,6 +107,7 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 	return p, nil
 }
 
+// Decode decodes the provided QOA encoded bytes and returns the QOA struct and the decoded audio sample data.
 func Decode(bytes []byte) (*QOA, []int16, error) {
 	q := &QOA{}
 	size := len(bytes)

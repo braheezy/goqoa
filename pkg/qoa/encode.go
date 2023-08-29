@@ -6,11 +6,14 @@ import (
 )
 
 // encodeHeader encodes the QOA header.
+// The QOA header is defined as the magic number `qoaf` followed by the number of samples in the file.
 func (q *QOA) encodeHeader(header []byte) {
 	binary.BigEndian.PutUint32(header, QOAMagic)
 	binary.BigEndian.PutUint32(header[4:], q.Samples)
 }
 
+// encodeFrame encodes a QOA frame using the provided sample data and returns the size of the encoded frame.
+// Each frame contains an 8 byte frame header, the current 16 byte en-/decoder state per channel and 256 slices per channel. Each slice is 8 bytes wide and encodes 20 samples of audio data.
 func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uint {
 	channels := q.Channels
 
@@ -134,6 +137,7 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	return p
 }
 
+// Encode encodes the provided audio sample data in QOA format and returns the encoded bytes.
 func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	if q.Samples == 0 || q.SampleRate == 0 || q.SampleRate > 0xffffff ||
 		q.Channels == 0 || q.Channels > QOAMaxChannels {
@@ -180,6 +184,7 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	return bytes, nil
 }
 
+// NewEncoder creates a new QOA encoder with the specified sample rate, channels, and samples.
 func NewEncoder(sampleRate, channels, samples uint32) *QOA {
 	return &QOA{
 		SampleRate: sampleRate,

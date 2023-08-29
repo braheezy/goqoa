@@ -89,11 +89,11 @@ func convertAudio(inputFile, outputFile string) {
 		if err != nil {
 			log.Fatalf("Error decoding WAV file: %v", err)
 		}
-		samples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
 		q = qoa.NewEncoder(
 			uint32(wavBuffer.Format.SampleRate),
 			uint32(wavBuffer.Format.NumChannels),
-			samples)
+			numSamples)
 		// Convert the audio data to int16 (QOA format)
 		decodedData = make([]int16, len(wavBuffer.Data))
 		for i, val := range wavBuffer.Data {
@@ -105,7 +105,7 @@ func convertAudio(inputFile, outputFile string) {
 	switch outExt {
 	case ".qoa":
 		fmt.Println("Output format is QOA")
-		// Encode the audio data using QOA
+		// Encode the audio data
 		qoaEncodedData, err := q.Encode(decodedData)
 		if err != nil {
 			log.Fatalf("Error encoding audio data to QOA: %v", err)
