@@ -101,6 +101,22 @@ func convertAudio(inputFile, outputFile string) {
 		}
 	}
 
+	// case ".mp3":
+	// 	fmt.Println("Input format is MP3")
+	// 	mp3Reader := bytes.NewReader(inputData)
+	// 	mp3Decoder, err := mp3.NewDecoder(mp3Reader)
+	// 	if err != nil {
+	// 		log.Fatalf("Error creating MP3 decoder: %v", err)
+	// 	}
+	// 	numSamples := uint32(mp3Decoder.Length()) // Adjust this based on your needs
+	// 	q = qoa.NewEncoder(
+	// 		uint32(mp3Decoder.SampleRate()),
+	// 		2, // Assuming stereo audio
+	// 		numSamples)
+	// 	// Convert the audio data to int16 (QOA format)
+	// 	decodedData = make([]int16, numSamples*2) // Assuming stereo audio
+	// 	mp3Decoder.Read(decodedData)
+
 	outExt := filepath.Ext(outputFile)
 	switch outExt {
 	case ".qoa":
