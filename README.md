@@ -1,6 +1,8 @@
 # QOA: Quite OK Audio
 > The Quite OK Audio Format for Fast, Lossy Compression.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/braheezy/goqoa.svg)](https://pkg.go.dev/github.com/braheezy/goqoa)
+
 A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
 
 The `goqoa` CLI tool provides basic functions for working with `.qoa` files.
