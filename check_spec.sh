@@ -29,7 +29,7 @@ if [ ! -f $spec_zip ]; then
     if command -V http &>/dev/null; then
         http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
     else
-        curl -q -O https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+        curl -s -O https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
     fi
 fi
 
