@@ -26,7 +26,8 @@ size_compare() {
 
 if [ ! -f $spec_zip ]; then
     echo "Downloading $spec_zip..."
-    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip -o $spec_zip
+    http --version
+    http -d https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip -o $spec_zip --verbose
 fi
 
 ls -lh
