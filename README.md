@@ -2,6 +2,7 @@
 > The Quite OK Audio Format for Fast, Lossy Compression.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/braheezy/goqoa.svg)](https://pkg.go.dev/github.com/braheezy/goqoa)
+[![Build Status](https://github.com/braheezy/goqoa/actions/workflows/ci.yml/badge.svg)](https://github.com/braheezy/goqoa/actions)
 
 A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
 
