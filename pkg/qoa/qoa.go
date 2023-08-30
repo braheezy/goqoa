@@ -3,7 +3,7 @@ Package qoa provides functionality for encoding and decoding audio data in the Q
 
 The following is from the QOA specification:
 
--- Data Format
+# Data Format
 
 QOA encodes pulse-code modulated (PCM) audio data with up to 255 channels,
 sample rates from 1 up to 16777215 hertz and a bit depth of 16 bits.
@@ -48,15 +48,15 @@ All values, including the slices, are big endian. The file layout is as follows:
 		} frames[ceil(samples / (256 * 20))];
 	} qoa_file_t;
 
-Each `qoa_slice_t` contains a quantized scalefactor `sf_quant` and 20 quantized
-residuals `qrNN`:
+Each qoa_slice_t contains a quantized scalefactor sf_quant and 20 quantized
+residuals qrNN:
 
-.- QOA_SLICE -- 64 bits, 20 samples --------------------------/  /------------.
-|        Byte[0]         |        Byte[1]         |  Byte[2]  \  \  Byte[7]   |
-| 7  6  5  4  3  2  1  0 | 7  6  5  4  3  2  1  0 | 7  6  5   /  /    2  1  0 |
-|------------+--------+--------+--------+---------+---------+-\  \--+---------|
-|  sf_quant  |  qr00  |  qr01  |  qr02  |  qr03   |  qr04   | /  /  |  qr19   |
-`-------------------------------------------------------------\  \------------`
+	.- QOA_SLICE -- 64 bits, 20 samples --------------------------/  /------------.
+	|        Byte[0]         |        Byte[1]         |  Byte[2]  \  \  Byte[7]   |
+	| 7  6  5  4  3  2  1  0 | 7  6  5  4  3  2  1  0 | 7  6  5   /  /    2  1  0 |
+	|------------+--------+--------+--------+---------+---------+-\  \--+---------|
+	|  sf_quant  |  qr00  |  qr01  |  qr02  |  qr03   |  qr04   | /  /  |  qr19   |
+	`-------------------------------------------------------------\  \------------`
 
 Each frame except the last must contain exactly 256 slices per channel. The last
 frame may contain between 1 .. 256 (inclusive) slices per channel. The last
@@ -98,17 +98,24 @@ dequantized residual forms the final output sample.
 */
 package qoa
 
-// QOA constants
 const (
-	QOAMagic          = 0x716f6166 // 'qoaf'
-	QOAMinFilesize    = 16
-	QOAMaxChannels    = 8
-	QOASliceLen       = 20
+	// QOAMagic is the magic number identifying a QOA file
+	QOAMagic = 0x716f6166 // 'qoaf'
+	// QOAMinFilesize is the minimum valid size of a QOA file.
+	QOAMinFilesize = 16
+	// QOAMaxChannels is the maximum number of audio channels supported by QOA.
+	QOAMaxChannels = 8
+	// QOASliceLen is the length of each QOA audio slice.
+	QOASliceLen = 20
+	// QOASlicesPerFrame is the number of slices per QOA frame.
 	QOASlicesPerFrame = 256
-	QOAFrameLen       = QOASlicesPerFrame * QOASliceLen
-	QOALMSLen         = 4
+	// QOAFrameLen is the length of a QOA frame.
+	QOAFrameLen = QOASlicesPerFrame * QOASliceLen
+	// QOALMSLen is the length of the LMS state per channel.
+	QOALMSLen = 4
 )
 
+// qoaFrameSize calculates the size of a QOA frame based on the number of channels and slices.
 func qoaFrameSize(channels, slices uint32) uint32 {
 	return 8 + QOALMSLen*4*channels + 8*slices*channels
 }
@@ -121,11 +128,11 @@ type qoaLMS struct {
 
 // QOA stores the QOA audio file description.
 type QOA struct {
-	Channels   uint32
-	SampleRate uint32
-	Samples    uint32
-	LMS        [QOAMaxChannels]qoaLMS
-	ErrorCount int
+	Channels   uint32                 // Number of audio channels
+	SampleRate uint32                 // Sample rate of the audio
+	Samples    uint32                 // Total number of audio samples
+	LMS        [QOAMaxChannels]qoaLMS // LMS state per channel
+	ErrorCount int                    // Count of errors during encoding/decoding
 }
 
 /*
