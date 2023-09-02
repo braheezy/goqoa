@@ -25,7 +25,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          choco install lame
+          wget https://www.rarewares.org/files/mp3/lame3.100.1-x64.zip -outfile lame3.zip
+          expand-archive lame3.zip -destinationpath C:\lame3
+          ls C:\lame3
+          $env:PATH += "C:\lame3;"
           go get ./...
 
       - name: Build
