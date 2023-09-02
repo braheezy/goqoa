@@ -122,6 +122,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            linux-amd64/
-            mac-amd64/
-            windows-amd64/
+            linux-amd64/*
+            mac-amd64/*
+            windows-amd64/*
