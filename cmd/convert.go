@@ -109,11 +109,7 @@ func convertAudio(inputFile, outputFile string) {
 			numSamples)
 
 	case ".mp3":
-		fmt.Println("Input format is MP3")
-		dec, mp3Data, err := minimp3.DecodeFull(inputData)
-		if err != nil {
-			log.Fatalf("Error decoding MP3 data: %v", err)
-		}
+		decodedData, q = decodeMp3(&inputData)
 
 		// Convert the MP3 audio data to int16 (QOA format)
 		decodedData = make([]int16, len(mp3Data)/2)
@@ -184,24 +180,7 @@ func convertAudio(inputFile, outputFile string) {
 		defer wavEncoder.Close()
 
 	case ".mp3":
-		fmt.Println("Output format is MP3")
-		mp3File, err := os.Create(outputFile)
-		if err != nil {
-			log.Fatalf("Error creating MP3 file: %v", err)
-		}
-		defer mp3File.Close()
-
-		mp3Encoder := lame.NewEncoder(mp3File)
-		defer mp3Encoder.Close()
-
-		mp3Encoder.SetNumChannels(int(q.Channels))
-		mp3Encoder.SetInSamplerate(int(q.SampleRate))
-
-		// Convert the PCM data to a []byte
-		pcmBytes := make([]byte, len(decodedData)*2) // Assuming 16-bit PCM (2 bytes per sample)
-		for i, val := range decodedData {
-			binary.LittleEndian.PutUint16(pcmBytes[i*2:], uint16(val))
-		}
+		encodeMp3(outputFile, q, decodedData)
 
 		// Encode and write the PCM data to the MP3 file
 		_, err = mp3Encoder.Write(pcmBytes)
