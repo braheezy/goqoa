@@ -73,10 +73,13 @@ func convertAudio(inputFile, outputFile string) {
 		return
 	}
 
-	inExt := filepath.Ext(inputFile)
+	// For the given input file type, we will obtain these values
+	// decodedData is the audio data converted to int16 (QOA format)
 	var decodedData []int16
+	// q is the QOA description. It is easiest created while decoding the input file.
 	var q *qoa.QOA
 
+	inExt := filepath.Ext(inputFile)
 	switch inExt {
 	case ".qoa":
 		fmt.Println("Input format is QOA")
@@ -93,16 +96,17 @@ func convertAudio(inputFile, outputFile string) {
 		if err != nil {
 			log.Fatalf("Error decoding WAV file: %v", err)
 		}
-		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
-		q = qoa.NewEncoder(
-			uint32(wavBuffer.Format.SampleRate),
-			uint32(wavBuffer.Format.NumChannels),
-			numSamples)
 		// Convert the audio data to int16 (QOA format)
 		decodedData = make([]int16, len(wavBuffer.Data))
 		for i, val := range wavBuffer.Data {
 			decodedData[i] = int16(val)
 		}
+
+		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+		q = qoa.NewEncoder(
+			uint32(wavBuffer.Format.SampleRate),
+			uint32(wavBuffer.Format.NumChannels),
+			numSamples)
 
 	case ".mp3":
 		fmt.Println("Input format is MP3")
