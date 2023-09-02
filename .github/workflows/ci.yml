@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: windows-artifact
+          name: windows-amd64
           path: goqoa.exe
 
   build-mac:
@@ -52,7 +52,10 @@ jobs:
           go-version: "1.21"
 
       - name: Install dependencies
-        run: go get ./...
+        run: |
+          uname -a
+          uname -m
+          go get ./...
 
       - name: Build
         run: go build -v .
@@ -62,7 +65,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mac-artifact
+          name: mac
           path: goqoa
 
   build-linux:
@@ -98,7 +101,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: linux-artifact
+          name: linux-amd64
           path: goqoa
 
   release:
