@@ -30,7 +30,7 @@ Use "goqoa [command] --help" for more information about a command.
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
 ## Install
-The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
+The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows. Windows doesn't support `mp3` because I couldn't figure out how to compile `libmp3lame` and link it.
 
 Otherwise, install prerequisites for your platform:
 
