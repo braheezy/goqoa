@@ -27,15 +27,17 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: go build -v ./... && ls
+        run: |
+          go build -v -o goqoa.exe ./...
+          ls
 
       - name: Go Test
         run: go test -v ./...
 
-      # - uses: actions/upload-artifact@v3
-      #   with:
-      #     name: windows-artifact
-      #     # path:
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows-artifact
+          path: goqoa.exe
 
   build-mac:
     runs-on: macos-latest
@@ -59,6 +61,11 @@ jobs:
 
       - name: Go Test
         run: go test -v ./...
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: mac-artifact
+          path: goqoa
 
   build-linux:
     runs-on: ubuntu-latest
@@ -91,6 +98,11 @@ jobs:
           sudo cp goqoa /usr/bin/
           bash check_spec.sh
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux-artifact
+          path: goqoa
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs:
@@ -101,26 +113,41 @@ jobs:
       contents: write
 
     runs-on: ubuntu-latest
-    env:
-      GO111MODULE: "on"
+    # env:
+    #   GO111MODULE: "on"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Install Go
-        uses: actions/setup-go@v4
+      - uses: actions/download-artifact@v3
         with:
-          go-version: "1.21"
+          name: my-artifact
+      - name: Display structure of downloaded files
+        run: ls -R
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libmp3lame-dev
+      # - name: Install Go
+      #   uses: actions/setup-go@v4
+      #   with:
+      #     go-version: "1.21"
 
-      - name: Release Go binaries on tags
-        uses: goreleaser/goreleaser-action@v4
-        with:
-          version: latest
-          args: release --clean
+      # - name: Install dependencies
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libasound2-dev libmp3lame-dev
+
+      # - name: Release Go binaries on tags
+      #   uses: goreleaser/goreleaser-action@v4
+      #   with:
+      #     version: latest
+      #     args: release --clean
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
