@@ -60,7 +60,7 @@ func playQOA(inputFile string) {
 	// player.IsPlaying() is the recommended approach but it never returns false for us.
 	// This method of checking the unplayed buffer size also works.
 	for player.BufferedSize() != 0 {
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond)
 	}
 
 	// Close the player
