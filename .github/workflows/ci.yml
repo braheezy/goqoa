@@ -65,7 +65,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mac
+          name: mac-amd64
           path: goqoa
 
   build-linux:
@@ -140,7 +140,10 @@ jobs:
       #     args: release --clean
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # - name: Release
-      #   uses: softprops/action-gh-release@v1
-      #   with:
-      #     files: |
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            linux-amd64
+            mac-amd64
+            windows-amd64
