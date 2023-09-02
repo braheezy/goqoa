@@ -121,4 +121,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: "*-amd64"
+          files: |
+            linux-amd64/
+            mac-amd64/
+            windows-amd64/
