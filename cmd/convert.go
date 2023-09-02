@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
@@ -13,10 +12,8 @@ import (
 	"github.com/braheezy/goqoa/pkg/qoa"
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
-	"github.com/tosone/minimp3"
 
 	"github.com/spf13/cobra"
-	"github.com/viert/go-lame"
 )
 
 var convertCmd = &cobra.Command{
@@ -110,22 +107,6 @@ func convertAudio(inputFile, outputFile string) {
 
 	case ".mp3":
 		decodedData, q = decodeMp3(&inputData)
-
-		// Convert the MP3 audio data to int16 (QOA format)
-		decodedData = make([]int16, len(mp3Data)/2)
-		for i := 0; i < len(mp3Data)/2; i++ {
-			sample := mp3Data[i*2 : (i+1)*2]
-			decodedData[i] = int16(binary.LittleEndian.Uint16(sample))
-		}
-
-		// Set QOA metadata
-		numSamples := len(decodedData) / dec.Channels
-		q = qoa.NewEncoder(
-			uint32(dec.SampleRate),
-			uint32(dec.Channels),
-			uint32(numSamples),
-		)
-
 	}
 
 	outExt := filepath.Ext(outputFile)
@@ -181,13 +162,6 @@ func convertAudio(inputFile, outputFile string) {
 
 	case ".mp3":
 		encodeMp3(outputFile, q, decodedData)
-
-		// Encode and write the PCM data to the MP3 file
-		_, err = mp3Encoder.Write(pcmBytes)
-		if err != nil {
-			log.Fatalf("Error encoding audio data to MP3: %v", err)
-		}
-
 	}
 
 	fmt.Printf("Conversion completed: %s -> %s\n", inputFile, outputFile)
