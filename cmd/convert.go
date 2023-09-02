@@ -99,23 +99,30 @@ func convertAudio(inputFile, outputFile string) {
 		for i, val := range wavBuffer.Data {
 			decodedData[i] = int16(val)
 		}
-	}
 
-	// case ".mp3":
-	// 	fmt.Println("Input format is MP3")
-	// 	mp3Reader := bytes.NewReader(inputData)
-	// 	mp3Decoder, err := mp3.NewDecoder(mp3Reader)
-	// 	if err != nil {
-	// 		log.Fatalf("Error creating MP3 decoder: %v", err)
-	// 	}
-	// 	numSamples := uint32(mp3Decoder.Length()) // Adjust this based on your needs
-	// 	q = qoa.NewEncoder(
-	// 		uint32(mp3Decoder.SampleRate()),
-	// 		2, // Assuming stereo audio
-	// 		numSamples)
-	// 	// Convert the audio data to int16 (QOA format)
-	// 	decodedData = make([]int16, numSamples*2) // Assuming stereo audio
-	// 	mp3Decoder.Read(decodedData)
+	case ".mp3":
+		fmt.Println("Input format is MP3")
+		dec, mp3Data, err := minimp3.DecodeFull(inputData)
+		if err != nil {
+			log.Fatalf("Error decoding MP3 data: %v", err)
+		}
+
+		// Convert the MP3 audio data to int16 (QOA format)
+		decodedData = make([]int16, len(mp3Data)/2)
+		for i := 0; i < len(mp3Data)/2; i++ {
+			sample := mp3Data[i*2 : (i+1)*2]
+			decodedData[i] = int16(binary.LittleEndian.Uint16(sample))
+		}
+
+		// Set QOA metadata
+		numSamples := len(decodedData) / dec.Channels
+		q = qoa.NewEncoder(
+			uint32(dec.SampleRate),
+			uint32(dec.Channels),
+			uint32(numSamples),
+		)
+
+	}
 
 	outExt := filepath.Ext(outputFile)
 	switch outExt {
