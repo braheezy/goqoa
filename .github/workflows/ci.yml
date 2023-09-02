@@ -27,10 +27,15 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: go build -v ./...
+        run: go build -v ./... && ls
 
       - name: Go Test
         run: go test -v ./...
+
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     name: windows-artifact
+      #     # path:
 
   build-mac:
     runs-on: macos-latest
@@ -47,9 +52,7 @@ jobs:
           go-version: "1.21"
 
       - name: Install dependencies
-        run: |
-          go get ./...
-          brew install lame
+        run: go get ./...
 
       - name: Build
         run: go build -v ./...
