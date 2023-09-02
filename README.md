@@ -35,15 +35,16 @@ The easiest way is a pre-built binary on the [Releases](https://github.com/brahe
 Otherwise, install prerequisites for your platform:
 
     # Fedora
-    yum install gcc alsa-lib-devel
+    yum install gcc alsa-lib-devel lame-devel
     # Debian
-    apt-get install gcc pkg-config libasound2-dev
+    apt-get install gcc pkg-config libasound2-dev libmp3lame-dev
 
 Then, install directly with Go:
 
     go install github.com/braheezy/goqoa@latest
 
 ## `qoa` Package
+The `qoa` package is a pure Go implementation
 Decode a `.qoa` file:
 ```go
 data, _ := os.ReadFile("groovy-tunes.qoa")
