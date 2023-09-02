@@ -24,8 +24,9 @@ jobs:
           go-version: "1.21"
 
       - name: Install dependencies
+        shell: powershell
         run: |
-          wget https://www.rarewares.org/files/mp3/lame3.100.1-x64.zip -outfile lame3.zip
+          invoke-webrequest https://www.rarewares.org/files/mp3/lame3.100.1-x64.zip -outfile lame3.zip
           expand-archive lame3.zip -destinationpath C:\lame3
           ls C:\lame3
           $env:PATH += "C:\lame3;"
