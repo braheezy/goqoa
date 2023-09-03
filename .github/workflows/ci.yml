@@ -118,4 +118,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: "*goqoa*"
+          files: |
+            */goqoa-linux
+            */goqoa-windows
+            */goqoa-mac
