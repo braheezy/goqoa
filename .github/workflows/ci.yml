@@ -120,5 +120,5 @@ jobs:
         with:
           files: |
             */goqoa-linux
-            */goqoa-windows
+            */goqoa.exe
             */goqoa-mac
