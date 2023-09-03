@@ -12,6 +12,7 @@ import (
 	"github.com/braheezy/goqoa/pkg/qoa"
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
+	"github.com/jfreymuth/oggvorbis"
 
 	"github.com/spf13/cobra"
 )
@@ -39,7 +40,7 @@ var convertCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 }
 
-var supportedFormats = []string{".qoa", ".wav", ".mp3"}
+var supportedFormats = []string{".qoa", ".wav", ".mp3", ".ogg"}
 
 func init() {
 	rootCmd.AddCommand(convertCmd)
@@ -107,6 +108,27 @@ func convertAudio(inputFile, outputFile string) {
 
 	case ".mp3":
 		decodedData, q = decodeMp3(&inputData)
+	case ".ogg":
+		fmt.Println("Input format is OGG")
+		oggReader := bytes.NewReader(inputData)
+		oggData, format, err := oggvorbis.ReadAll(oggReader)
+		if err != nil {
+			log.Fatalf("Error decoding OGG data: %v", err)
+		}
+
+		decodedData = make([]int16, len(oggData))
+		for i, val := range oggData {
+			// Scale to int16 range
+			decodedData[i] = int16(val * 32767.0)
+		}
+
+		// Set QOA metadata
+		numSamples := len(decodedData) / format.Channels
+		q = qoa.NewEncoder(
+			uint32(format.SampleRate),
+			uint32(format.Channels),
+			uint32(numSamples),
+		)
 	}
 
 	outExt := filepath.Ext(outputFile)
@@ -162,6 +184,10 @@ func convertAudio(inputFile, outputFile string) {
 
 	case ".mp3":
 		encodeMp3(outputFile, q, decodedData)
+	case ".ogg":
+		fmt.Println("Output format is OGG")
+		fmt.Println("And that's not supported yet...")
+		return
 	}
 
 	fmt.Printf("Conversion completed: %s -> %s\n", inputFile, outputFile)
