@@ -93,7 +93,7 @@ jobs:
 
       - name: Spec Test
         run: |
-          sudo cp goqoa /usr/bin/
+          sudo cp goqoa-linux /usr/bin/goqoa
           bash check_spec.sh
 
       - uses: actions/upload-artifact@v3
