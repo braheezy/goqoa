@@ -224,6 +224,10 @@ func convertAudio(inputFile, outputFile string) {
 		fmt.Println("Output format is OGG")
 		fmt.Println("And that's not supported yet...")
 		return
+	case ".flac":
+		fmt.Println("Output format is FLAC")
+		fmt.Println("And that's not supported yet...")
+		return
 	}
 
 	fmt.Printf("Conversion completed: %s -> %s\n", inputFile, outputFile)
