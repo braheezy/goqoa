@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 	"github.com/jfreymuth/oggvorbis"
+	"github.com/mewkiz/flac"
 
 	"github.com/spf13/cobra"
 )
@@ -40,7 +42,7 @@ var convertCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 }
 
-var supportedFormats = []string{".qoa", ".wav", ".mp3", ".ogg"}
+var supportedFormats = []string{".qoa", ".wav", ".mp3", ".ogg", ".flac"}
 
 func init() {
 	rootCmd.AddCommand(convertCmd)
@@ -127,6 +129,40 @@ func convertAudio(inputFile, outputFile string) {
 		q = qoa.NewEncoder(
 			uint32(format.SampleRate),
 			uint32(format.Channels),
+			uint32(numSamples),
+		)
+	case ".flac":
+		fmt.Println("Input format is FLAC")
+		flacStream, err := flac.Open(inputFile)
+		if err != nil {
+			log.Fatalf("Error opening FLAC file: %v", err)
+		}
+		defer flacStream.Close()
+
+		for {
+			// Decode FLAC frame
+			flacFrame, err := flacStream.ParseNext()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				log.Fatalf("Error parsing FLAC frame: %v", err)
+			}
+
+			// Collect audio samples
+			for i := 0; i < flacFrame.Subframes[0].NSamples; i++ {
+				for _, subframe := range flacFrame.Subframes {
+					sample := subframe.Samples[i]
+					decodedData = append(decodedData, int16(sample))
+				}
+			}
+		}
+		// Set QOA metadata
+		flacMetadata := flacStream.Info
+		numSamples := len(decodedData) / int(flacMetadata.NChannels)
+		q = qoa.NewEncoder(
+			flacMetadata.SampleRate,
+			uint32(flacMetadata.NChannels),
 			uint32(numSamples),
 		)
 	}
