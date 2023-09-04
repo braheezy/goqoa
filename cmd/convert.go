@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/braheezy/goqoa/pkg/qoa"
@@ -54,10 +53,19 @@ func isSupportedConversion(inputFile, outputFile string) bool {
 	outExt := filepath.Ext(outputFile)
 
 	notSameFileExt := inExt != outExt
-	bothSupportedExt := slices.Contains(supportedFormats, inExt) && slices.Contains(supportedFormats, outExt)
+	bothSupportedExt := contains(supportedFormats, inExt) && contains(supportedFormats, outExt)
 	atLeastOneQoaExt := hasQOAExtension(inputFile) || hasQOAExtension(outputFile)
 
 	return notSameFileExt && bothSupportedExt && atLeastOneQoaExt
+}
+
+func contains(arr []string, target string) bool {
+	for _, item := range arr {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
 
 func hasQOAExtension(filename string) bool {

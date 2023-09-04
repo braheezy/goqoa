@@ -78,7 +78,7 @@ qoaEncodedData, err := q.Encode(decodedData)
 
 ## Development
 You'll need the following:
-- Go 1.21+ because that's when `slices` got merged to standard library
+- Go 1.*
 - `make`
 - The [dependencies that `oto` requires](https://github.com/ebitengine/oto#prerequisite)
 
