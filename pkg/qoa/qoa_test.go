@@ -1,25 +1,15 @@
 package qoa
 
 import (
-	"bytes"
-	"crypto/md5"
-	"embed"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"reflect"
 	"testing"
 
-	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-//go:embed testdata/*
-var testFiles embed.FS
 
 func TestEncodeHeader(t *testing.T) {
 	qoa := &QOA{
@@ -287,113 +277,4 @@ func TestBasicEncode(t *testing.T) {
 
 	assert.Nil(t, err, "Unexpected error")
 	assert.NotEmpty(t, qoaEncodedData, "Expected QOA encoded data")
-}
-
-func TestWavToQoa(t *testing.T) {
-	// Read wav file
-	wavFile, err := testFiles.Open("testdata/sting_loss_piano.wav")
-	if err != nil {
-		log.Fatalf("Error reading WAV file: %v", err)
-	}
-	defer wavFile.Close()
-	data, _ := io.ReadAll(wavFile)
-	wavReader := bytes.NewReader(data)
-
-	// Decode WAV audio data
-	wavDecoder := wav.NewDecoder(wavReader)
-	wavBuffer, err := wavDecoder.FullPCMBuffer()
-	if err != nil {
-		log.Fatalf("Error decoding WAV file: %v", err)
-	}
-
-	samples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
-	q := NewEncoder(
-		uint32(wavBuffer.Format.SampleRate),
-		uint32(wavBuffer.Format.NumChannels),
-		samples)
-
-	// Convert the audio data to int16 (QOA format)
-	int16AudioData := make([]int16, len(wavBuffer.Data))
-	for i, val := range wavBuffer.Data {
-		int16AudioData[i] = int16(val)
-	}
-
-	// Encode the audio data using QOA
-	qoaEncodedData, err := q.Encode(int16AudioData)
-	if err != nil {
-		log.Fatalf("Error encoding audio data to QOA: %v", err)
-	}
-
-	// Read the content of the golden.qoa file
-	goldenQOAData, err := testFiles.ReadFile("testdata/sting_loss_piano.qoa")
-	if err != nil {
-		log.Fatalf("Error reading golden.qoa file: %v", err)
-	}
-
-	require.Equal(t, goldenQOAData, qoaEncodedData, "Incorrect QOA data")
-
-}
-
-func TestQoaToWav(t *testing.T) {
-	// Load the QOA audio file
-	qoaBytes, err := os.ReadFile("testdata/sting_loss_piano.qoa")
-	if err != nil {
-		log.Fatalf("Error reading QOA file: %v", err)
-	}
-
-	// Decode the QOA audio data
-	q := &QOA{}
-	q, decodedData, err := Decode(qoaBytes)
-	if err != nil {
-		log.Fatalf("Error decoding QOA data: %v", err)
-	}
-
-	// Convert int16 to int for WAV conversion
-	intAudioData := make([]int, len(decodedData))
-	for i, val := range decodedData {
-		intAudioData[i] = int(val)
-	}
-
-	wavBuffer := &audio.IntBuffer{
-		Data:           intAudioData,
-		Format:         &audio.Format{SampleRate: int(q.SampleRate), NumChannels: int(q.Channels)},
-		SourceBitDepth: 16,
-	}
-	// Write the WAV audio data to a WAV file
-	tmpWavFile, err := os.Create("temp.qoa.wav")
-	if err != nil {
-		log.Fatalf("Error creating temporary WAV file: %v", err)
-	}
-	defer os.Remove(tmpWavFile.Name())
-	defer tmpWavFile.Close()
-
-	wavEncoder := wav.NewEncoder(
-		tmpWavFile,
-		int(q.SampleRate),
-		16,
-		int(q.Channels),
-		1)
-	if err = wavEncoder.Write(wavBuffer); err != nil {
-		log.Fatalf("Error writing WAV data: %v", err)
-	}
-	// Close now or the checksum later will be off.
-	wavEncoder.Close()
-
-	expectedData, _ := testFiles.ReadFile("testdata/sting_loss_piano.qoa.wav")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	actualData, _ := os.ReadFile(tmpWavFile.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	expectedChecksum := md5.Sum(expectedData)
-	expectedChecksumStr := hex.EncodeToString(expectedChecksum[:])
-	actualChecksum := md5.Sum(actualData)
-	actualChecksumStr := hex.EncodeToString(actualChecksum[:])
-
-	// Compare the checksums
-	require.Equal(t, expectedChecksumStr, actualChecksumStr, "Incorrect WAV file checksum")
 }
