@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -32,16 +33,6 @@ func TestConvertCmd(t *testing.T) {
 		outputFormat string
 	}{
 		{
-			audioFormat:  "mp3",
-			inputFormat:  "mp3",
-			outputFormat: "qoa",
-		},
-		{
-			audioFormat:  "mp3",
-			inputFormat:  "qoa",
-			outputFormat: "mp3",
-		},
-		{
 			audioFormat:  "wav",
 			inputFormat:  "qoa",
 			outputFormat: "wav",
@@ -61,6 +52,25 @@ func TestConvertCmd(t *testing.T) {
 			inputFormat:  "flac",
 			outputFormat: "qoa",
 		},
+	}
+	if runtime.GOOS != "windows" {
+		mp3TestCases := []struct {
+			audioFormat  string
+			inputFormat  string
+			outputFormat string
+		}{
+			{
+				audioFormat:  "mp3",
+				inputFormat:  "mp3",
+				outputFormat: "qoa",
+			},
+			{
+				audioFormat:  "mp3",
+				inputFormat:  "qoa",
+				outputFormat: "mp3",
+			},
+		}
+		tt = append(tt, mp3TestCases...)
 	}
 
 	for _, tc := range tt {
