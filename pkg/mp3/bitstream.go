@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-type bitstream struct {
+type Bitstream struct {
 	// Processed data
 	data []byte
 	// Total data size
@@ -28,7 +28,7 @@ const (
 )
 
 // openBitstream opens the device to write the bit stream into it
-func (bs *bitstream) openBitstream(dataSize int) {
+func (bs *Bitstream) openBitstream(dataSize int) {
 	bs.data = make([]byte, dataSize)
 	bs.dataSize = dataSize
 	bs.dataPosition = 0
@@ -37,7 +37,7 @@ func (bs *bitstream) openBitstream(dataSize int) {
 }
 
 // putBits writes N bits of val into the bit stream.
-func (bs *bitstream) putBits(val uint32, N uint32) {
+func (bs *Bitstream) putBits(val uint32, N uint32) {
 	if N > MAX_LENGTH {
 		fmt.Printf("Cannot write more than %v bits at one time.\n", MAX_LENGTH)
 	}
@@ -72,6 +72,6 @@ func (bs *bitstream) putBits(val uint32, N uint32) {
 	}
 }
 
-func (bs *bitstream) getBitsCount() int {
+func (bs *Bitstream) getBitsCount() int {
 	return bs.dataPosition*8 + 32 - int(bs.cacheBits)
 }
