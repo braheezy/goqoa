@@ -31,7 +31,7 @@ func subbandInitialize(config *globalConfig) {
 // coefficients The windowed samples #z# is filtered by the digital filter matrix #filter# to produce the subband
 // samples #s#. This done by first selectively picking out values from the windowed samples, and then
 // multiplying them by the filter matrix, producing 32 subband samples.
-func windowFilterSubband(buffer *[][]int16, s [SUBBAND_LIMIT]int32, ch int, config *globalConfig, stride int) {
+func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, config *globalConfig, stride int) {
 	y := make([]int32, 64)
 	ptr := (*buffer)[0]
 
