@@ -36,6 +36,12 @@ func max(a, b int) int {
 	return b
 }
 
+const (
+	MPEG_I int = iota
+	MPEG_25
+	MPEG_II
+)
+
 type Wave struct {
 	Channels   int
 	SampleRate int
@@ -88,7 +94,7 @@ type Mpeg struct {
 	WholeSlotsPerFrame    int
 	BitrateIndex          int
 	SampleRateIndex       int
-	Crc                   int
+	Crc                   bool
 	Ext                   int
 	ModeExt               int
 	Copyright             int
