@@ -36,13 +36,7 @@ func max(a, b int) int {
 	return b
 }
 
-const (
-	MPEG_I int = iota
-	MPEG_25
-	MPEG_II
-)
-
-type Wave struct {
+type wave struct {
 	Channels   int
 	SampleRate int
 }
@@ -76,7 +70,7 @@ type SideInfo struct {
 		channels [MAX_CHANNELS]GranuleInfo
 	}
 }
-type Mpeg struct {
+type mpeg struct {
 	Version          int
 	Layer            int
 	GranulesPerFrame int
@@ -105,9 +99,13 @@ type PsyRatio struct {
 	l [MAX_GRANULES][MAX_CHANNELS][21]float64
 }
 
+type PsyXMin struct {
+	l [MAX_GRANULES][MAX_CHANNELS][21]float64
+}
+
 type L3loop struct {
 	// Magnitudes of the spectral values
-	XR *int32
+	XR []int32
 	// xr squared
 	Xrsq [GRANULE_SIZE]int32
 	// xr absolute
@@ -120,9 +118,9 @@ type L3loop struct {
 	Xm     [MAX_GRANULES][21]int32
 	Xrmaxl [MAX_GRANULES]int32
 	// 2**(-x/4) for x = -127..0
-	Steptab [128]float64
+	StepTable [128]float64
 	// 2**(-x/4) for x = -127..0
-	Steptabi [128]int32
+	StepTableI [128]int32
 	// x**(3/4) for x = 0..9999
 	Int2idx [10000]int
 }
@@ -144,15 +142,15 @@ type Subband struct {
 	x   [MAX_CHANNELS][HAN_SIZE]int32
 }
 type globalConfig struct {
-	wave             Wave
-	mpeg             Mpeg
+	wave             wave
+	mpeg             mpeg
 	bitstream        Bitstream
 	sideInfo         SideInfo
 	sideInfoLen      int
 	meanBits         int
 	ratio            PsyRatio
 	scaleFactor      ScaleFactor
-	buffer           [MAX_CHANNELS]int16
+	buffer           [MAX_CHANNELS][]int16
 	psychoEnergy     [MAX_CHANNELS][MAX_GRANULES]float64
 	l3Encoding       [MAX_CHANNELS][MAX_GRANULES][GRANULE_SIZE]int
 	l3SubbandSamples [MAX_CHANNELS][MAX_GRANULES + 1][18][SUBBAND_LIMIT]int32

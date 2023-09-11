@@ -167,7 +167,7 @@ func huffmanCodeBits(config *globalConfig, ix *[576]int, granInfo *GranuleInfo) 
 	}
 
 	// 2. Write count1 area
-	h := huffCodeTable[granInfo.Count1TableSelect+32]
+	h := huffmanCodeTable[granInfo.Count1TableSelect+32]
 	count1End := bigValues + (granInfo.Count1 << 2)
 	for i := bigValues; i < count1End; i += 4 {
 		v = ix[i]
@@ -241,7 +241,7 @@ func huffmanCode(bs *Bitstream, tableIndex uint, x, y int) {
 	signX := absAndSign(&x)
 	signY := absAndSign(&y)
 
-	h := &huffCodeTable[tableIndex]
+	h := &huffmanCodeTable[tableIndex]
 	yLen := h.yLen
 
 	if tableIndex > 15 {

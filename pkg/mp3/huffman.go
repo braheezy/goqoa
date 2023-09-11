@@ -269,7 +269,7 @@ var (
 
 const NOREF = -1
 
-var huffCodeTable = [HTN]huffCodeTableInfo{
+var huffmanCodeTable = [HTN]huffCodeTableInfo{
 	{0, 0, 0, 0, nil, nil},
 	{2, 2, 0, 0, t1HB, t1l},
 	{3, 3, 0, 0, t2HB, t2l},
