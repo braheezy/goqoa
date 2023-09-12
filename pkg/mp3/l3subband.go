@@ -4,7 +4,7 @@ import "math"
 
 // subbandInitialize calculates the analysis filterbank coefficients and rounds to the  9th decimal
 // place accuracy of the filterbank tables in the ISO document. The coefficients are stored in #filter#
-func subbandInitialize(config *globalConfig) {
+func subbandInitialize(config *GlobalConfig) {
 
 	for i := 0; i < MAX_CHANNELS; i++ {
 		config.subband.off[i] = 0
@@ -31,9 +31,10 @@ func subbandInitialize(config *globalConfig) {
 // coefficients The windowed samples #z# is filtered by the digital filter matrix #filter# to produce the subband
 // samples #s#. This done by first selectively picking out values from the windowed samples, and then
 // multiplying them by the filter matrix, producing 32 subband samples.
-func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, config *globalConfig, stride int) {
+func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, config *GlobalConfig, stride int) {
 	y := make([]int32, 64)
 	ptr := (*buffer)[0]
+	println(len(ptr))
 
 	// Replace 32 oldest samples with 32 new samples
 	for i := int32(0); i < 32; i++ {
@@ -42,15 +43,15 @@ func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, co
 	}
 	(*buffer)[0] = ptr
 
-	for i := int32(64); i > 0; i-- {
-		sValue := mul(config.subband.x[ch][config.subband.off[ch]+i+(0<<6)&(HAN_SIZE-1)], enWindow[i+(0<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(1<<6)&(HAN_SIZE-1)], enWindow[i+(1<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(2<<6)&(HAN_SIZE-1)], enWindow[i+(2<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(3<<6)&(HAN_SIZE-1)], enWindow[i+(3<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(4<<6)&(HAN_SIZE-1)], enWindow[i+(4<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(5<<6)&(HAN_SIZE-1)], enWindow[i+(5<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(6<<6)&(HAN_SIZE-1)], enWindow[i+(6<<6)])
-		sValue += mul(config.subband.x[ch][config.subband.off[ch]+i+(7<<6)&(HAN_SIZE-1)], enWindow[i+(7<<6)])
+	for i := int32(64 - 1); i >= 0; i-- {
+		sValue := mul(config.subband.x[ch][(config.subband.off[ch]+i+(0<<6))&(HAN_SIZE-1)], enWindow[i+(0<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(1<<6))&(HAN_SIZE-1)], enWindow[i+(1<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(2<<6))&(HAN_SIZE-1)], enWindow[i+(2<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(3<<6))&(HAN_SIZE-1)], enWindow[i+(3<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(4<<6))&(HAN_SIZE-1)], enWindow[i+(4<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(5<<6))&(HAN_SIZE-1)], enWindow[i+(5<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(6<<6))&(HAN_SIZE-1)], enWindow[i+(6<<6)])
+		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(7<<6))&(HAN_SIZE-1)], enWindow[i+(7<<6)])
 
 		y[i] = sValue
 	}
@@ -58,7 +59,7 @@ func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, co
 	//offset is modulo (HAN_SIZE)
 	config.subband.off[ch] = (config.subband.off[ch] + 480) & (HAN_SIZE - 1)
 
-	for i := SUBBAND_LIMIT; i > 0; i-- {
+	for i := SUBBAND_LIMIT - 1; i >= 0; i-- {
 		sValue := mul(config.subband.fl[i][63], y[63])
 		for j := 63; j > 0; j -= 7 {
 			sValue += mul(config.subband.fl[i][j-1], y[j-1])

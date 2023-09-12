@@ -5,9 +5,9 @@ package mp3
 // from a layer3 encoder's perspective the bit stream is primarily
 // a series of main_data() blocks, with header and side information
 // inserted at the proper locations to maintain framing. (See Figure A.7 in the IS).
-func formatBitstream(config *globalConfig) {
-	for ch := 0; ch < config.wave.Channels; ch++ {
-		for gr := 0; gr < config.mpeg.GranulesPerFrame; gr++ {
+func formatBitstream(config *GlobalConfig) {
+	for ch := 0; ch < config.Wave.Channels; ch++ {
+		for gr := 0; gr < config.MPEG.GranulesPerFrame; gr++ {
 			pi := &config.l3Encoding[ch][gr]
 			pr := &config.mdctFrequency[ch][gr]
 			for i := 0; i < GRANULE_SIZE; i++ {
@@ -22,10 +22,10 @@ func formatBitstream(config *globalConfig) {
 	encodeMainData(config)
 }
 
-func encodeMainData(config *globalConfig) {
+func encodeMainData(config *GlobalConfig) {
 	sideInfo := config.sideInfo
-	for gr := 0; gr < config.mpeg.GranulesPerFrame; gr++ {
-		for ch := 0; ch < config.wave.Channels; ch++ {
+	for gr := 0; gr < config.MPEG.GranulesPerFrame; gr++ {
+		for ch := 0; ch < config.Wave.Channels; ch++ {
 			granInfo := sideInfo.granules[gr].channels[ch]
 			sLen1 := slen1Table[granInfo.ScaleFactorCompress]
 			sLen2 := slen2Table[granInfo.ScaleFactorCompress]
@@ -57,59 +57,59 @@ func encodeMainData(config *globalConfig) {
 	}
 }
 
-func encodeSideInfo(config *globalConfig) {
+func encodeSideInfo(config *GlobalConfig) {
 	sideInfo := config.sideInfo
 
 	config.bitstream.putBits(0x7ff, 11)
-	config.bitstream.putBits(uint32(config.mpeg.Version), 2)
-	if config.mpeg.Crc {
+	config.bitstream.putBits(uint32(config.MPEG.Version), 2)
+	if config.MPEG.Crc {
 		config.bitstream.putBits(1, 1)
 	} else {
 		config.bitstream.putBits(0, 1)
 	}
 
-	config.bitstream.putBits(uint32(config.mpeg.BitrateIndex), 4)
-	config.bitstream.putBits(uint32(config.mpeg.SampleRateIndex%3), 2)
-	config.bitstream.putBits(uint32(config.mpeg.Padding), 1)
-	config.bitstream.putBits(uint32(config.mpeg.Ext), 1)
-	config.bitstream.putBits(uint32(config.mpeg.Mode), 2)
-	config.bitstream.putBits(uint32(config.mpeg.ModeExt), 2)
-	config.bitstream.putBits(uint32(config.mpeg.Copyright), 1)
-	config.bitstream.putBits(uint32(config.mpeg.Original), 1)
-	config.bitstream.putBits(uint32(config.mpeg.EmpH), 2)
+	config.bitstream.putBits(uint32(config.MPEG.BitrateIndex), 4)
+	config.bitstream.putBits(uint32(config.MPEG.SampleRateIndex%3), 2)
+	config.bitstream.putBits(uint32(config.MPEG.Padding), 1)
+	config.bitstream.putBits(uint32(config.MPEG.Ext), 1)
+	config.bitstream.putBits(uint32(config.MPEG.Mode), 2)
+	config.bitstream.putBits(uint32(config.MPEG.ModeExt), 2)
+	config.bitstream.putBits(uint32(config.MPEG.Copyright), 1)
+	config.bitstream.putBits(uint32(config.MPEG.Original), 1)
+	config.bitstream.putBits(uint32(config.MPEG.EmpH), 2)
 
-	if config.mpeg.Version == MPEG_I {
+	if config.MPEG.Version == MPEG_I {
 		config.bitstream.putBits(0, 9)
-		if config.wave.Channels == 2 {
+		if config.Wave.Channels == 2 {
 			config.bitstream.putBits(uint32(sideInfo.privateBits), 3)
 		} else {
 			config.bitstream.putBits(uint32(sideInfo.privateBits), 5)
 		}
 	} else {
 		config.bitstream.putBits(0, 8)
-		if config.wave.Channels == 2 {
+		if config.Wave.Channels == 2 {
 			config.bitstream.putBits(uint32(sideInfo.privateBits), 2)
 		} else {
 			config.bitstream.putBits(uint32(sideInfo.privateBits), 1)
 		}
 	}
 
-	if config.mpeg.Version == MPEG_I {
-		for ch := 0; ch < config.wave.Channels; ch++ {
+	if config.MPEG.Version == MPEG_I {
+		for ch := 0; ch < config.Wave.Channels; ch++ {
 			for scfsiBand := 0; scfsiBand < 4; scfsiBand++ {
 				config.bitstream.putBits(uint32(sideInfo.scaleFactorSelectInfo[ch][scfsiBand]), 1)
 			}
 		}
 	}
 
-	for gr := 0; gr < config.mpeg.GranulesPerFrame; gr++ {
-		for ch := 0; ch < config.wave.Channels; ch++ {
+	for gr := 0; gr < config.MPEG.GranulesPerFrame; gr++ {
+		for ch := 0; ch < config.Wave.Channels; ch++ {
 			granInfo := &sideInfo.granules[gr].channels[ch]
 
 			config.bitstream.putBits(uint32(granInfo.Part2_3Length), 12)
 			config.bitstream.putBits(uint32(granInfo.BigValues), 9)
 			config.bitstream.putBits(uint32(granInfo.GlobalGain), 8)
-			if config.mpeg.Version == MPEG_I {
+			if config.MPEG.Version == MPEG_I {
 				config.bitstream.putBits(uint32(granInfo.ScaleFactorCompress), 4)
 			} else {
 				config.bitstream.putBits(uint32(granInfo.ScaleFactorCompress), 9)
@@ -123,7 +123,7 @@ func encodeSideInfo(config *globalConfig) {
 			config.bitstream.putBits(uint32(granInfo.Region0Count), 4)
 			config.bitstream.putBits(uint32(granInfo.Region1Count), 3)
 
-			if config.mpeg.Version == MPEG_I {
+			if config.MPEG.Version == MPEG_I {
 				config.bitstream.putBits(uint32(granInfo.PreFlag), 1)
 			}
 			config.bitstream.putBits(uint32(granInfo.ScaleFactorScale), 1)
@@ -132,8 +132,8 @@ func encodeSideInfo(config *globalConfig) {
 	}
 }
 
-func huffmanCodeBits(config *globalConfig, ix *[576]int, granInfo *GranuleInfo) {
-	scaleFactors := scaleFactorBandIndex[config.mpeg.SampleRateIndex]
+func huffmanCodeBits(config *GlobalConfig, ix *[576]int, granInfo *GranuleInfo) {
+	scaleFactors := scaleFactorBandIndex[config.MPEG.SampleRateIndex]
 
 	bits := config.bitstream.getBitsCount()
 

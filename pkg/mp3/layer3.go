@@ -1,6 +1,8 @@
 package mp3
 
-import "errors"
+import (
+	"fmt"
+)
 
 const (
 	MPEG_I int = iota
@@ -44,17 +46,6 @@ const (
 	CITT
 )
 
-type MPEG struct {
-	// Stereo mode
-	mode mode
-	// Must conform to known bitrate
-	bitRate int
-	// De-emphasis
-	emphasis  emphasis
-	copyright int
-	original  int
-}
-
 const SHINE_MAX_SAMPLES = 1152
 
 var mpegGranulesPerFrame = [4]int{
@@ -66,13 +57,6 @@ var mpegGranulesPerFrame = [4]int{
 	1,
 	// MPEG I
 	2,
-}
-
-func (m *MPEG) setDefaults() {
-	m.bitRate = 128
-	m.emphasis = NO_EMPHASIS
-	m.copyright = 0
-	m.original = 1
 }
 
 // mpegVersion returns the MPEG version used for the given samplerate index. See below
@@ -109,6 +93,7 @@ func (m *MPEG) setDefaults() {
  *
  */
 func mpegVersion(sampleRateIndex int) int {
+	println("finding mpeg version", sampleRateIndex)
 	// Pick mpeg version according to samplerate index.
 	if sampleRateIndex < 3 {
 		// First 3 sampleRates are for MPEG-I
@@ -122,26 +107,29 @@ func mpegVersion(sampleRateIndex int) int {
 
 // findSampleRateIndex checks if a given samplerate is supported by the encoder
 func findSampleRateIndex(freq int) (int, error) {
+	println("finding samplerate index", freq)
 	for i := 0; i < 9; i++ {
 		if freq == int(sampleRates[i]) {
+			println("found samplerate index", i)
 			return i, nil
 		}
 	}
-	return -1, errors.New("Unsupported samplerate")
+	return -1, fmt.Errorf("unsupported samplerate: %v", freq)
 }
 
 // findBitrateIndex checks if a given bitrate is supported by the encoder
 func findBitrateIndex(bitrate, version int) (int, error) {
 	for i := 0; i < 16; i++ {
+		// println("checking ", bitrate, i, version, bitRates[i][version])
 		if bitrate == int(bitRates[i][version]) {
 			return i, nil
 		}
 	}
-	return -1, errors.New("Unsupported bitrate")
+	return -1, fmt.Errorf("unsupported bitrate: %v for version %v", bitrate, version)
 }
 
-// checkConfig checks if a given bitrate and samplerate is supported by the encoder
-func checkConfig(freq, bitrate int) (int, error) {
+// CheckConfig checks if a given bitrate and samplerate is supported by the encoder
+func CheckConfig(freq, bitrate int) (int, error) {
 	sampleRateIndex, err := findSampleRateIndex(freq)
 	if err != nil {
 		return -1, err
@@ -156,8 +144,8 @@ func checkConfig(freq, bitrate int) (int, error) {
 }
 
 // samplesPerPass returns the audio samples expected in each frame.
-func (c *globalConfig) samplesPerPass() int {
-	return c.mpeg.GranulesPerFrame * GRANULE_SIZE
+func (c *GlobalConfig) samplesPerPass() int {
+	return c.MPEG.GranulesPerFrame * GRANULE_SIZE
 }
 
 // Pass a pointer to a `config_t` structure and returns an initialized
@@ -174,66 +162,67 @@ func (c *globalConfig) samplesPerPass() int {
 //
 // This function returns NULL if it was not able to allocate memory data for
 // the encoder.
-func (c *globalConfig) NewEncoder() (*globalConfig, error) {
-	_, err := checkConfig(c.wave.SampleRate, c.mpeg.Bitrate)
+func (c *GlobalConfig) NewEncoder() (*GlobalConfig, error) {
+	println("NewEncoder", c.Wave.SampleRate, c.MPEG.Bitrate)
+	_, err := CheckConfig(c.Wave.SampleRate, c.MPEG.Bitrate)
 	if err != nil {
 		return nil, err
 	}
 
-	encoder := new(globalConfig)
+	encoder := new(GlobalConfig)
 
 	subbandInitialize(c)
 	mdctInitialize(c)
 	loopInitialize(c)
 
-	encoder.wave.Channels = c.wave.Channels
-	encoder.wave.SampleRate = c.wave.SampleRate
-	encoder.mpeg.Mode = c.mpeg.Mode
-	encoder.mpeg.Bitrate = c.mpeg.Bitrate
-	encoder.mpeg.EmpH = c.mpeg.EmpH
-	encoder.mpeg.Copyright = c.mpeg.Copyright
-	encoder.mpeg.Original = c.mpeg.Original
+	encoder.Wave.Channels = c.Wave.Channels
+	encoder.Wave.SampleRate = c.Wave.SampleRate
+	encoder.MPEG.Mode = c.MPEG.Mode
+	encoder.MPEG.Bitrate = c.MPEG.Bitrate
+	encoder.MPEG.EmpH = c.MPEG.EmpH
+	encoder.MPEG.Copyright = c.MPEG.Copyright
+	encoder.MPEG.Original = c.MPEG.Original
 
-	encoder.mpeg.Layer = LAYER_III
-	encoder.mpeg.BitsPerSlot = 8
+	encoder.MPEG.Layer = LAYER_III
+	encoder.MPEG.BitsPerSlot = 8
 
-	encoder.mpeg.SampleRateIndex, err = findSampleRateIndex(encoder.wave.SampleRate)
+	encoder.MPEG.SampleRateIndex, err = findSampleRateIndex(encoder.Wave.SampleRate)
 	if err != nil {
 		return nil, err
 	}
-	encoder.mpeg.Version = mpegVersion(encoder.mpeg.SampleRateIndex)
-	encoder.mpeg.BitrateIndex, err = findBitrateIndex(encoder.mpeg.Bitrate, encoder.mpeg.Version)
+	encoder.MPEG.Version = mpegVersion(encoder.MPEG.SampleRateIndex)
+	encoder.MPEG.BitrateIndex, err = findBitrateIndex(encoder.MPEG.Bitrate, encoder.MPEG.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	encoder.mpeg.GranulesPerFrame = mpegGranulesPerFrame[encoder.mpeg.Version]
+	encoder.MPEG.GranulesPerFrame = mpegGranulesPerFrame[encoder.MPEG.Version]
 
 	// Figure average number of 'slots' per frame.
-	averageSlotsPerFrame := float64(encoder.mpeg.GranulesPerFrame*GRANULE_SIZE) / float64(encoder.wave.SampleRate*1000.0*encoder.mpeg.Bitrate/encoder.mpeg.BitsPerSlot)
-	encoder.mpeg.WholeSlotsPerFrame = int(averageSlotsPerFrame)
+	averageSlotsPerFrame := float64(encoder.MPEG.GranulesPerFrame*GRANULE_SIZE) / float64(encoder.Wave.SampleRate*1000.0*encoder.MPEG.Bitrate/encoder.MPEG.BitsPerSlot)
+	encoder.MPEG.WholeSlotsPerFrame = int(averageSlotsPerFrame)
 
-	encoder.mpeg.FractionSlotsPerFrame = averageSlotsPerFrame - float64(encoder.mpeg.WholeSlotsPerFrame)
-	encoder.mpeg.SlotLag = -encoder.mpeg.FractionSlotsPerFrame
+	encoder.MPEG.FractionSlotsPerFrame = averageSlotsPerFrame - float64(encoder.MPEG.WholeSlotsPerFrame)
+	encoder.MPEG.SlotLag = -encoder.MPEG.FractionSlotsPerFrame
 
-	if encoder.mpeg.FractionSlotsPerFrame == 0 {
-		encoder.mpeg.Padding = 0
+	if encoder.MPEG.FractionSlotsPerFrame == 0 {
+		encoder.MPEG.Padding = 0
 	}
 
 	encoder.bitstream.openBitstream(BUFFER_SIZE)
 
 	// determine the mean bitrate for main data
-	if encoder.mpeg.GranulesPerFrame == 2 {
+	if encoder.MPEG.GranulesPerFrame == 2 {
 		// MPEG-I
 		lenMultiplier := 4 + 32
-		if encoder.wave.Channels == 1 {
+		if encoder.Wave.Channels == 1 {
 			lenMultiplier = 4 + 17
 		}
 		encoder.sideInfoLen = 8 * lenMultiplier
 	} else {
 		// MPEG-II
 		lenMultiplier := 4 + 17
-		if encoder.wave.Channels == 1 {
+		if encoder.Wave.Channels == 1 {
 			lenMultiplier = 4 + 9
 		}
 		encoder.sideInfoLen = 8 * lenMultiplier
@@ -241,20 +230,20 @@ func (c *globalConfig) NewEncoder() (*globalConfig, error) {
 	return encoder, nil
 }
 
-func encodeBufferInternal(config *globalConfig, written *int, stride int) []byte {
-	if config.mpeg.FractionSlotsPerFrame != 0 {
-		if config.mpeg.SlotLag <= (config.mpeg.FractionSlotsPerFrame - 1.0) {
-			config.mpeg.Padding = 1
+func encodeBufferInternal(config *GlobalConfig, written *int, stride int) []byte {
+	if config.MPEG.FractionSlotsPerFrame != 0 {
+		if config.MPEG.SlotLag <= (config.MPEG.FractionSlotsPerFrame - 1.0) {
+			config.MPEG.Padding = 1
 		} else {
-			config.mpeg.Padding = 0
+			config.MPEG.Padding = 0
 		}
 
-		config.mpeg.SlotLag += (float64(config.mpeg.Padding) - config.mpeg.FractionSlotsPerFrame)
+		config.MPEG.SlotLag += (float64(config.MPEG.Padding) - config.MPEG.FractionSlotsPerFrame)
 	}
 
-	config.mpeg.BitsPerFrame = 8 * (config.mpeg.WholeSlotsPerFrame + config.mpeg.Padding)
-	config.meanBits = (config.mpeg.BitsPerFrame - config.sideInfoLen) /
-		config.mpeg.GranulesPerFrame
+	config.MPEG.BitsPerFrame = 8 * (config.MPEG.WholeSlotsPerFrame + config.MPEG.Padding)
+	config.meanBits = (config.MPEG.BitsPerFrame - config.sideInfoLen) /
+		config.MPEG.GranulesPerFrame
 
 	// Apply mdct to the polyphase output
 	mdctSub(config, stride)
@@ -272,24 +261,24 @@ func encodeBufferInternal(config *globalConfig, written *int, stride int) []byte
 	return config.bitstream.data
 }
 
-func encodeBuffer(config *globalConfig, data [][]int16, written *int) []byte {
+func encodeBuffer(config *GlobalConfig, data [][]int16, written *int) []byte {
 	config.buffer[0] = data[0]
-	if config.wave.Channels == 2 {
+	if config.Wave.Channels == 2 {
 		config.buffer[1] = data[1]
 	}
 	return encodeBufferInternal(config, written, 1)
 }
 
-func encodeBufferInterleaved(config *globalConfig, data []int16, written *int) []byte {
+func encodeBufferInterleaved(config *GlobalConfig, data []int16, written *int) []byte {
 	config.buffer[0] = data
-	if config.wave.Channels == 2 {
+	if config.Wave.Channels == 2 {
 		config.buffer[1] = data[1:]
 	}
-	return encodeBufferInternal(config, written, config.wave.Channels)
+	return encodeBufferInternal(config, written, config.Wave.Channels)
 
 }
 
-func flush(config *globalConfig, written *int) []byte {
+func flush(config *GlobalConfig, written *int) []byte {
 	*written = config.bitstream.dataPosition
 	config.bitstream.dataPosition = 0
 	return config.bitstream.data

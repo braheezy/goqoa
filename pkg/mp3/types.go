@@ -75,11 +75,11 @@ type mpeg struct {
 	Layer            int
 	GranulesPerFrame int
 	// Stereo mode
-	Mode int
+	Mode mode
 	// Must conform to known bitrate
 	Bitrate int
 	// De-emphasis
-	EmpH                  int
+	EmpH                  emphasis
 	Padding               int
 	BitsPerFrame          int
 	BitsPerSlot           int
@@ -141,9 +141,9 @@ type Subband struct {
 	fl  [SUBBAND_LIMIT][64]int32
 	x   [MAX_CHANNELS][HAN_SIZE]int32
 }
-type globalConfig struct {
-	wave             wave
-	mpeg             mpeg
+type GlobalConfig struct {
+	Wave             wave
+	MPEG             mpeg
 	bitstream        Bitstream
 	sideInfo         SideInfo
 	sideInfoLen      int
@@ -160,4 +160,11 @@ type globalConfig struct {
 	l3loop           L3loop
 	mdct             MDCT
 	subband          Subband
+}
+
+func (c *GlobalConfig) SetDefaults() {
+	c.MPEG.Bitrate = 128
+	c.MPEG.EmpH = NO_EMPHASIS
+	c.MPEG.Copyright = 0
+	c.MPEG.Original = 1
 }

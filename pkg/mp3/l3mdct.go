@@ -30,10 +30,10 @@ var (
 	MDCT_CS7 = MDCT_CS(-0.0037)
 )
 
-func mdctInitialize(config *globalConfig) {
+func mdctInitialize(config *GlobalConfig) {
 	// Prepare the mdct coefficients
-	for m := 18; m > 0; m-- {
-		for k := 30; k > 0; k-- {
+	for m := 17; m > 0; m-- {
+		for k := 35; k > 0; k-- {
 			// Combine window and mdct coefficients into a single table
 			// scale and convert to fixed point before storing
 			config.mdct.cosL[m][k] = int32(math.Sin(PI36*(float64(k)+0.5)) * math.Cos(PI/72) * (2*float64(k) + 19) * (2*float64(m) + 1) * 0x7fffffff)
@@ -41,16 +41,16 @@ func mdctInitialize(config *globalConfig) {
 	}
 }
 
-func mdctSub(config *globalConfig, stride int) {
+func mdctSub(config *GlobalConfig, stride int) {
 	// note. we wish to access the array 'config.mdct_freq[2][2][576]' as
 	// [2][2][32][18]. (32*18=576)
-	var mdctEnc [][576]int32
+	// var mdctEnc [][576]int32
 	mdctIn := make([]int32, 36)
 
-	for ch := config.wave.Channels; ch > 0; ch-- {
-		for granule := 0; granule < config.mpeg.GranulesPerFrame; granule++ {
+	for ch := config.Wave.Channels - 1; ch >= 0; ch-- {
+		for granule := 0; granule < config.MPEG.GranulesPerFrame; granule++ {
 			// set up pointer to the part of config->mdct_freq we're using
-			mdctEnc = config.mdctFrequency[ch][granule*18 : (granule+1)*18]
+			mdctEnc := config.mdctFrequency[ch][granule]
 
 			// polyphase filtering
 			for k := 0; k < 18; k += 2 {
@@ -65,7 +65,7 @@ func mdctSub(config *globalConfig, stride int) {
 
 			// Perform imdct of 18 previous subband samples + 18 current subband samples
 			for band := 0; band < 32; band++ {
-				for k := 18; k > 0; k-- {
+				for k := 18 - 1; k >= 0; k-- {
 					mdctIn[k] = config.l3SubbandSamples[ch][granule][k][band]
 					mdctIn[k+18] = config.l3SubbandSamples[ch][granule+1][k][band]
 				}
@@ -74,7 +74,7 @@ func mdctSub(config *globalConfig, stride int) {
 				// In the case of long blocks ( block_type 0,1,3 ) there are
 				// 36 coefficients in the time domain and 18 in the frequency
 				// domain.
-				for k := 18; k > 0; k-- {
+				for k := 18 - 1; k >= 0; k-- {
 					var vm int32
 
 					vm = mul(mdctIn[35], config.mdct.cosL[k][35])
@@ -87,48 +87,48 @@ func mdctSub(config *globalConfig, stride int) {
 						vm += mul(mdctIn[j-6], config.mdct.cosL[k][j-6])
 						vm += mul(mdctIn[j-7], config.mdct.cosL[k][j-7])
 					}
-					mdctEnc[band][k] = vm
+					mdctEnc[band*18+k] = vm
 				}
 
 				// Perform aliasing reduction butterfly
 				if band != 0 {
-					mdctEnc[band][0], mdctEnc[band-1][17-0] = cmuls(
-						&mdctEnc[band][0], &mdctEnc[band-1][17-0],
+					mdctEnc[band*18+0], mdctEnc[(band-1)*18+17-0] = cmuls(
+						&mdctEnc[band*18+0], &mdctEnc[(band-1)*18+17-0],
 						&MDCT_CS0, &MDCT_CA0,
 					)
 
-					mdctEnc[band][1], mdctEnc[band-1][17-1] = cmuls(
-						&mdctEnc[band][1], &mdctEnc[band-1][17-1],
+					mdctEnc[band*18+1], mdctEnc[(band-1)*18+17-1] = cmuls(
+						&mdctEnc[band*18+1], &mdctEnc[(band-1)*18+17-1],
 						&MDCT_CS1, &MDCT_CA1,
 					)
 
-					mdctEnc[band][2], mdctEnc[band-1][17-2] = cmuls(
-						&mdctEnc[band][2], &mdctEnc[band-1][17-2],
+					mdctEnc[band*18+2], mdctEnc[(band-1)*18+17-2] = cmuls(
+						&mdctEnc[band*18+2], &mdctEnc[(band-1)*18+17-2],
 						&MDCT_CS2, &MDCT_CA2,
 					)
 
-					mdctEnc[band][3], mdctEnc[band-1][17-3] = cmuls(
-						&mdctEnc[band][3], &mdctEnc[band-1][17-3],
+					mdctEnc[band*18+3], mdctEnc[(band-1)*18+17-3] = cmuls(
+						&mdctEnc[band*18+3], &mdctEnc[(band-1)*18+17-3],
 						&MDCT_CS3, &MDCT_CA3,
 					)
 
-					mdctEnc[band][4], mdctEnc[band-1][17-4] = cmuls(
-						&mdctEnc[band][4], &mdctEnc[band-1][17-4],
+					mdctEnc[band*18+4], mdctEnc[(band-1)*18+17-4] = cmuls(
+						&mdctEnc[band*18+4], &mdctEnc[(band-1)*18+17-4],
 						&MDCT_CS4, &MDCT_CA4,
 					)
 
-					mdctEnc[band][5], mdctEnc[band-1][17-5] = cmuls(
-						&mdctEnc[band][5], &mdctEnc[band-1][17-5],
+					mdctEnc[band*18+5], mdctEnc[(band-1)*18+17-5] = cmuls(
+						&mdctEnc[band*18+5], &mdctEnc[(band-1)*18+17-5],
 						&MDCT_CS5, &MDCT_CA5,
 					)
 
-					mdctEnc[band][6], mdctEnc[band-1][17-6] = cmuls(
-						&mdctEnc[band][6], &mdctEnc[band-1][17-6],
+					mdctEnc[band*18+6], mdctEnc[(band-1)*18+17-6] = cmuls(
+						&mdctEnc[band*18+6], &mdctEnc[(band-1)*18+17-6],
 						&MDCT_CS6, &MDCT_CA6,
 					)
 
-					mdctEnc[band][7], mdctEnc[band-1][17-7] = cmuls(
-						&mdctEnc[band][7], &mdctEnc[band-1][17-7],
+					mdctEnc[band*18+7], mdctEnc[(band-1)*18+17-7] = cmuls(
+						&mdctEnc[band*18+7], &mdctEnc[(band-1)*18+17-7],
 						&MDCT_CS7, &MDCT_CA7,
 					)
 				}
@@ -136,6 +136,6 @@ func mdctSub(config *globalConfig, stride int) {
 		}
 
 		// Save latest granule's subband samples to be used in the next mdct call
-		copy(config.l3SubbandSamples[ch][0][:], config.l3SubbandSamples[ch][config.mpeg.GranulesPerFrame][:])
+		copy(config.l3SubbandSamples[ch][0][:], config.l3SubbandSamples[ch][config.MPEG.GranulesPerFrame][:])
 	}
 }

@@ -13,7 +13,7 @@ const (
 )
 
 // innerLoop selects the best quantizerStepSize for a particular set of scaleFactors.
-func innerLoop(ix [GRANULE_SIZE]int, maxBits int, granuleInfo *GranuleInfo, granuleIndex int, ch int, config *globalConfig) int {
+func innerLoop(ix [GRANULE_SIZE]int, maxBits int, granuleInfo *GranuleInfo, granuleIndex int, ch int, config *GlobalConfig) int {
 	if maxBits < 0 {
 		granuleInfo.QuantizerStepSize--
 	}
@@ -49,7 +49,7 @@ func innerLoop(ix [GRANULE_SIZE]int, maxBits int, granuleInfo *GranuleInfo, gran
 // global gain. This module calls the inner iteration loop.
 // l3XMin: the allowed distortion of the scaleFactor.
 // ix: vector of quantized values ix(0..575)
-func outerLoop(maxBits int, l3XMin *PsyXMin, ix [GRANULE_SIZE]int, granuleIndex, ch int, config *globalConfig) int {
+func outerLoop(maxBits int, l3XMin *PsyXMin, ix [GRANULE_SIZE]int, granuleIndex, ch int, config *GlobalConfig) int {
 	sideInfo := &config.sideInfo
 	codeInfo := &sideInfo.granules[granuleIndex].channels[ch]
 
@@ -64,10 +64,10 @@ func outerLoop(maxBits int, l3XMin *PsyXMin, ix [GRANULE_SIZE]int, granuleIndex,
 	return int(codeInfo.Part2_3Length)
 }
 
-func iterationLoop(config *globalConfig) {
+func iterationLoop(config *GlobalConfig) {
 
-	for ch := config.wave.Channels; ch > 0; ch-- {
-		for gr := 0; gr < config.mpeg.GranulesPerFrame; gr++ {
+	for ch := config.Wave.Channels - 1; ch >= 0; ch-- {
+		for gr := 0; gr < config.MPEG.GranulesPerFrame; gr++ {
 			// Setup pointers
 			ix := config.l3Encoding[ch][gr]
 			config.l3loop.XR = config.mdctFrequency[ch][gr][:]
@@ -88,7 +88,7 @@ func iterationLoop(config *globalConfig) {
 			l3XMin := PsyXMin{}
 			calcXMin(&config.ratio, codeInfo, &l3XMin, gr, ch)
 
-			if config.mpeg.Version == MPEG_I {
+			if config.MPEG.Version == MPEG_I {
 				calcSCFSI(&l3XMin, ch, gr, config)
 			}
 
@@ -137,12 +137,12 @@ func iterationLoop(config *globalConfig) {
 }
 
 // loopInitialize calculates the look up tables used by the iteration loop.
-func loopInitialize(config *globalConfig) {
+func loopInitialize(config *GlobalConfig) {
 	// quantize: stepsize conversion, fourth root of 2 table.
 	// The table is inverted (negative power) from the equation given
 	// in the spec because it is quicker to do x*y than x/y.
 	// The 0.5 is for rounding.
-	for i := 128; i > 0; i-- {
+	for i := 127 - 1; i >= 0; i-- {
 		config.l3loop.StepTable[i] = math.Pow(2.0, float64(127-i)/4)
 		if config.l3loop.StepTable[i]*2 > 0x7fffffff {
 			config.l3loop.StepTableI[i] = 0x7fffffff
@@ -156,25 +156,25 @@ func loopInitialize(config *globalConfig) {
 
 	// quantize: vector conversion, three quarter power table.
 	// The 0.5 is for rounding, the .0946 comes from the spec.
-	for i := 10000; i > 0; i-- {
+	for i := 10000 - 1; i >= 0; i-- {
 		config.l3loop.Int2idx[i] = int(math.Sqrt(math.Sqrt(float64(i)*float64(i)) - 0.0946 + 0.5))
 	}
 }
 
 // calcSCFSI calculates the scalefactor select information ( scfsi )
-func calcSCFSI(l3XMin *PsyXMin, ch, granuleIndex int, config *globalConfig) {
+func calcSCFSI(l3XMin *PsyXMin, ch, granuleIndex int, config *GlobalConfig) {
 	l3Side := &config.sideInfo
 	// This is the scfsi_band table from 2.4.2.7 of the IS
 	scfsiBandLong := [5]int{0, 6, 11, 16, 21}
 
 	condition := 0
-	scaleFactorBandLong := scaleFactorBandIndex[config.mpeg.SampleRateIndex]
+	scaleFactorBandLong := scaleFactorBandIndex[config.MPEG.SampleRateIndex]
 
 	config.l3loop.Xrmaxl[granuleIndex] = config.l3loop.Xrmax
 
 	temp := 0
 	// the total energy of the granule
-	for i := GRANULE_SIZE; i > 0; i-- {
+	for i := GRANULE_SIZE - 1; i >= 0; i-- {
 		// a bit of scaling to avoid overflow, (not very good)
 		temp += int(config.l3loop.Xrsq[i] >> 10)
 	}
@@ -202,7 +202,7 @@ func calcSCFSI(l3XMin *PsyXMin, ch, granuleIndex int, config *globalConfig) {
 	}
 
 	if granuleIndex == 1 {
-		for gr := 2; gr > 0; gr-- {
+		for gr := MAX_GRANULES - 1; gr >= 0; gr-- {
 			// the spectral values are not all zero
 			if config.l3loop.Xrmaxl[gr] != 0 {
 				condition++
@@ -247,7 +247,7 @@ func calcSCFSI(l3XMin *PsyXMin, ch, granuleIndex int, config *globalConfig) {
 
 // calcPart2Length calculates the number of bits needed to encode the scaleFactor in the
 // main data block.
-func calcPart2Length(granuleIndex, ch int, config *globalConfig) uint {
+func calcPart2Length(granuleIndex, ch int, config *GlobalConfig) uint {
 	granuleInfo := &config.sideInfo.granules[granuleIndex].channels[ch]
 
 	bits := uint(0)
@@ -283,7 +283,7 @@ func calcXMin(ratio *PsyRatio, codeInfo *GranuleInfo, l3XMin *PsyXMin, granuleIn
 // step size. The following optional code written by Seymour Shlien will speed up the shine_outer_loop code which is
 // called by iteration_loop. When BIN_SEARCH is defined, the shine_outer_loop function precedes the call to the
 // function shine_inner_loop with a call to bin_search gain defined below, which returns a good starting quantizerStepSize.
-func binSearchStepSize(desiredRate int, ix [GRANULE_SIZE]int, codeInfo *GranuleInfo, config *globalConfig) int {
+func binSearchStepSize(desiredRate int, ix [GRANULE_SIZE]int, codeInfo *GranuleInfo, config *GlobalConfig) int {
 	next := -120
 	count := 120
 
@@ -391,7 +391,7 @@ func bigValuesBitCount(ix [GRANULE_SIZE]int, granuleInfo *GranuleInfo) int {
 
 // quantize perform quantization of the vector xr ( -> ix).
 // Returns maximum value of ix
-func quantize(ix [GRANULE_SIZE]int, stepSize int, config *globalConfig) int {
+func quantize(ix [GRANULE_SIZE]int, stepSize int, config *GlobalConfig) int {
 	//  2**(-stepSize/4)
 	scaleI := config.l3loop.StepTableI[stepSize+127]
 
@@ -618,7 +618,7 @@ func newChooseTable(ix [GRANULE_SIZE]int, begin, end uint32) uint {
 }
 
 // subDivide subdivides the bigValue region which will use separate Huffman tables.
-func subDivide(codeInfo *GranuleInfo, config *globalConfig) {
+func subDivide(codeInfo *GranuleInfo, config *GlobalConfig) {
 	type subRegion struct {
 		region0Count uint32
 		region1Count uint32
@@ -655,7 +655,7 @@ func subDivide(codeInfo *GranuleInfo, config *globalConfig) {
 		codeInfo.Region0Count = 0
 		codeInfo.Region1Count = 0
 	} else {
-		scaleFactorBandLong := scaleFactorBandIndex[config.mpeg.SampleRateIndex][:]
+		scaleFactorBandLong := scaleFactorBandIndex[config.MPEG.SampleRateIndex][:]
 		bigValuesRegion := codeInfo.BigValues * 2
 
 		scaleFactorBandCountAnalysis := 0

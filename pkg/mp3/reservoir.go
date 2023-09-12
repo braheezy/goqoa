@@ -3,10 +3,10 @@ package mp3
 
 // maxReservoirBits is called at the beginning of each granule to get the max bit
 // allowance for the current granule based on reservoir size and perceptual entropy.
-func maxReservoirBits(pe float64, config *globalConfig) int {
+func maxReservoirBits(pe float64, config *GlobalConfig) int {
 	meanBits := config.meanBits
 
-	meanBits /= config.wave.Channels
+	meanBits /= config.Wave.Channels
 	maxBits := meanBits
 
 	if maxBits > 4095 {
@@ -41,15 +41,15 @@ func maxReservoirBits(pe float64, config *globalConfig) int {
 
 // reservoirAdjust is called after a granule's bit allocation. It readjusts the size of
 // the reservoir to reflect the granule's usage.
-func reservoirAdjust(granuleInfo *GranuleInfo, config *globalConfig) {
-	config.reservoirSize += config.meanBits/config.wave.Channels - int(granuleInfo.Part2_3Length)
+func reservoirAdjust(granuleInfo *GranuleInfo, config *GlobalConfig) {
+	config.reservoirSize += config.meanBits/config.Wave.Channels - int(granuleInfo.Part2_3Length)
 }
 
-func reservoirFrameEnd(config *globalConfig) {
+func reservoirFrameEnd(config *GlobalConfig) {
 	ancillaryPad := 0
 
 	// Just in case meanBits is odd, this is necessary
-	if config.wave.Channels == 2 && config.meanBits&1 != 0 {
+	if config.Wave.Channels == 2 && config.meanBits&1 != 0 {
 		config.reservoirSize++
 	}
 	overBits := config.reservoirSize - config.reservoirMaxSize
@@ -74,8 +74,8 @@ func reservoirFrameEnd(config *globalConfig) {
 			granInfo.Part2_3Length += uint(stuffingBits)
 		} else {
 			// Plan B: distribute the stuffingBits evenly over the granules
-			for gr := 0; gr < config.mpeg.GranulesPerFrame; gr++ {
-				for ch := 0; ch < config.wave.Channels; ch++ {
+			for gr := 0; gr < config.MPEG.GranulesPerFrame; gr++ {
+				for ch := 0; ch < config.Wave.Channels; ch++ {
 					if stuffingBits == 0 {
 						break
 					}
