@@ -186,7 +186,7 @@ func calcSCFSI(l3XMin *PsyXMin, ch, granuleIndex int, config *GlobalConfig) {
 
 	// the energy of each scalefactor band, en
 	// the allowed distortion of each scalefactor band, xm
-	for sfb := 21; sfb > 0; sfb-- {
+	for sfb := 21 - 1; sfb >= 0; sfb-- {
 		start := scaleFactorBandLong[sfb]
 		end := scaleFactorBandLong[sfb+1]
 
@@ -273,7 +273,7 @@ func calcPart2Length(granuleIndex, ch int, config *GlobalConfig) uint {
 // calcXMin calculates the allowed distortion for each scalefactor band,
 // as determined by the psychoacoustic model. xmin(sb) = ratio(sb) * en(sb) / bw(sb)
 func calcXMin(ratio *PsyRatio, codeInfo *GranuleInfo, l3XMin *PsyXMin, granuleIndex, ch int) {
-	for sfb := codeInfo.ScaleFactorBandMaxLen; sfb > 0; sfb-- {
+	for sfb := int(codeInfo.ScaleFactorBandMaxLen - 1); sfb >= 0; sfb-- {
 		// NB: xmin will always be zero with no psychoacoustic model...
 		l3XMin.l[granuleIndex][ch][sfb] = 0
 	}

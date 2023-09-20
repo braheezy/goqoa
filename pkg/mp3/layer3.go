@@ -93,7 +93,6 @@ var mpegGranulesPerFrame = [4]int{
  *
  */
 func mpegVersion(sampleRateIndex int) int {
-	println("finding mpeg version", sampleRateIndex)
 	// Pick mpeg version according to samplerate index.
 	if sampleRateIndex < 3 {
 		// First 3 sampleRates are for MPEG-I
@@ -107,10 +106,8 @@ func mpegVersion(sampleRateIndex int) int {
 
 // findSampleRateIndex checks if a given samplerate is supported by the encoder
 func findSampleRateIndex(freq int) (int, error) {
-	println("finding samplerate index", freq)
 	for i := 0; i < 9; i++ {
 		if freq == int(sampleRates[i]) {
-			println("found samplerate index", i)
 			return i, nil
 		}
 	}
@@ -120,7 +117,6 @@ func findSampleRateIndex(freq int) (int, error) {
 // findBitrateIndex checks if a given bitrate is supported by the encoder
 func findBitrateIndex(bitrate, version int) (int, error) {
 	for i := 0; i < 16; i++ {
-		// println("checking ", bitrate, i, version, bitRates[i][version])
 		if bitrate == int(bitRates[i][version]) {
 			return i, nil
 		}
@@ -163,12 +159,8 @@ func (c *GlobalConfig) samplesPerPass() int {
 // This function returns NULL if it was not able to allocate memory data for
 // the encoder.
 func (c *GlobalConfig) NewEncoder() (*GlobalConfig, error) {
-	println("NewEncoder", c.Wave.SampleRate, c.MPEG.Bitrate)
-	_, err := CheckConfig(c.Wave.SampleRate, c.MPEG.Bitrate)
-	if err != nil {
-		return nil, err
-	}
 
+	var err error
 	encoder := new(GlobalConfig)
 
 	subbandInitialize(c)
@@ -230,7 +222,7 @@ func (c *GlobalConfig) NewEncoder() (*GlobalConfig, error) {
 	return encoder, nil
 }
 
-func encodeBufferInternal(config *GlobalConfig, written *int, stride int) []byte {
+func encodeBufferInternal(config *GlobalConfig, stride int) []byte {
 	if config.MPEG.FractionSlotsPerFrame != 0 {
 		if config.MPEG.SlotLag <= (config.MPEG.FractionSlotsPerFrame - 1.0) {
 			config.MPEG.Padding = 1
@@ -255,7 +247,7 @@ func encodeBufferInternal(config *GlobalConfig, written *int, stride int) []byte
 	formatBitstream(config)
 
 	// Return data.
-	*written = config.bitstream.dataPosition
+	// *written = config.bitstream.dataPosition
 	config.bitstream.dataPosition = 0
 
 	return config.bitstream.data
@@ -266,15 +258,15 @@ func encodeBuffer(config *GlobalConfig, data [][]int16, written *int) []byte {
 	if config.Wave.Channels == 2 {
 		config.buffer[1] = data[1]
 	}
-	return encodeBufferInternal(config, written, 1)
+	return encodeBufferInternal(config, 1)
 }
 
-func encodeBufferInterleaved(config *GlobalConfig, data []int16, written *int) []byte {
+func encodeBufferInterleaved(config *GlobalConfig, data []int16) []byte {
 	config.buffer[0] = data
 	if config.Wave.Channels == 2 {
 		config.buffer[1] = data[1:]
 	}
-	return encodeBufferInternal(config, written, config.Wave.Channels)
+	return encodeBufferInternal(config, config.Wave.Channels)
 
 }
 

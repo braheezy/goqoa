@@ -34,7 +34,9 @@ func subbandInitialize(config *GlobalConfig) {
 func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, config *GlobalConfig, stride int) {
 	y := make([]int32, 64)
 	ptr := (*buffer)[0]
-	println(len(ptr))
+	if len(ptr) == 0 {
+		return
+	}
 
 	// Replace 32 oldest samples with 32 new samples
 	for i := int32(0); i < 32; i++ {

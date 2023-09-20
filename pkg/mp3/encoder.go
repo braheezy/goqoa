@@ -9,7 +9,6 @@ func (enc *GlobalConfig) Write(filePath string, pcmData []int16) error {
 		return err
 	}
 	defer outputFile.Close()
-	var x *int
 
 	// Encoding Loop: Encode PCM data and write to the output file.
 	var encodedData []byte
@@ -21,7 +20,7 @@ func (enc *GlobalConfig) Write(filePath string, pcmData []int16) error {
 		}
 
 		encodedData = append(encodedData,
-			encodeBufferInterleaved(enc, pcmData[:samplesPerPass], x)...)
+			encodeBufferInterleaved(enc, pcmData[:samplesPerPass])...)
 		_, err := outputFile.Write(encodedData)
 		if err != nil {
 			return err
@@ -30,7 +29,6 @@ func (enc *GlobalConfig) Write(filePath string, pcmData []int16) error {
 		pcmData = pcmData[samplesPerPass:]
 	}
 
-	encodedData = flush(enc, x)
 	_, err = outputFile.Write(encodedData)
 	if err != nil {
 		return err
