@@ -1,52 +1,32 @@
 package mp3
 
 import (
-	"fmt"
-)
-
-const (
-	MPEG_I int = iota
-	MPEG_25
-	MPEG_II
-)
-
-// This is the struct used to tell the encoder about the input PCM
-type channel int
-
-const (
-	PCM_MONO channel = iota
-	PCM_STEREO
-)
-
-// Only Layer III currently implemented
-const (
-	LAYER_III int = iota
-)
-
-type Wave struct {
-	channel    channel
-	sampleRate int
-}
-
-// This is the struct the encoder uses to tell the encoder about the output MP3
-type mode int
-
-const (
-	STEREO mode = iota
-	JOINT_STEREO
-	DUAL_CHANNEL
-	MONO
-)
-
-type emphasis int
-
-const (
-	NO_EMPHASIS emphasis = iota
-	MU50_15
-	CITT
+	"encoding/binary"
+	"io"
+	"unsafe"
 )
 
 const SHINE_MAX_SAMPLES = 1152
+
+type channel int
+
+const (
+	PCM_MONO   channel = 1
+	PCM_STEREO channel = 2
+)
+
+type mpegVersion int
+
+const (
+	MPEG_25 mpegVersion = 0
+	MPEG_II mpegVersion = 2
+	MPEG_I  mpegVersion = 3
+)
+
+type mpegLayer int
+
+// Only Layer III currently implemented
+const LAYER_III mpegLayer = 1
 
 var mpegGranulesPerFrame = [4]int{
 	// MPEG 2.5
@@ -59,43 +39,8 @@ var mpegGranulesPerFrame = [4]int{
 	2,
 }
 
-// mpegVersion returns the MPEG version used for the given samplerate index. See below
-// for a list of possible values.
-/* Tables of supported audio parameters & format.
- *
- * Valid samplerates and bitrates.
- * const int samplerates[9] = {
- *   44100, 48000, 32000, // MPEG-I
- *   22050, 24000, 16000, // MPEG-II
- *   11025, 12000, 8000   // MPEG-2.5
- * };
- *
- * const int bitrates[16][4] = {
- * //  MPEG version:
- * //  2.5, reserved,  II,  I
- *   { -1,  -1,        -1,  -1},
- *   { 8,   -1,         8,  32},
- *   { 16,  -1,        16,  40},
- *   { 24,  -1,        24,  48},
- *   { 32,  -1,        32,  56},
- *   { 40,  -1,        40,  64},
- *   { 48,  -1,        48,  80},
- *   { 56,  -1,        56,  96},
- *   { 64,  -1,        64, 112},
- *   { 80,  -1,        80, 128},
- *   { 96,  -1,        96, 160},
- *   {112,  -1,       112, 192},
- *   {128,  -1,       128, 224},
- *   {144,  -1,       144, 256},
- *   {160,  -1,       160, 320},
- *   { -1,  -1,        -1,  -1}
- *  };
- *
- */
-func mpegVersion(sampleRateIndex int) int {
-	// Pick mpeg version according to samplerate index.
+func getMpegVersion(sampleRateIndex int) mpegVersion {
 	if sampleRateIndex < 3 {
-		// First 3 sampleRates are for MPEG-I
 		return MPEG_I
 	} else if sampleRateIndex < 6 {
 		return MPEG_II
@@ -104,174 +49,153 @@ func mpegVersion(sampleRateIndex int) int {
 	}
 }
 
-// findSampleRateIndex checks if a given samplerate is supported by the encoder
-func findSampleRateIndex(freq int) (int, error) {
-	for i := 0; i < 9; i++ {
+// findSampleRateIndex checks if a given sampleRate is supported by the encoder
+func findSampleRateIndex(freq int) int {
+	var i int
+	for i = 0; i < 9; i++ {
 		if freq == int(sampleRates[i]) {
-			return i, nil
+			return i
 		}
 	}
-	return -1, fmt.Errorf("unsupported samplerate: %v", freq)
+	return -1
 }
 
 // findBitrateIndex checks if a given bitrate is supported by the encoder
-func findBitrateIndex(bitrate, version int) (int, error) {
-	for i := 0; i < 16; i++ {
-		if bitrate == int(bitRates[i][version]) {
-			return i, nil
+func findBitrateIndex(bitr int, mpeg_version mpegVersion) int {
+	var i int
+	for i = 0; i < 16; i++ {
+		if bitr == int(bitRates[i][mpeg_version]) {
+			return i
 		}
 	}
-	return -1, fmt.Errorf("unsupported bitrate: %v for version %v", bitrate, version)
+	return -1
 }
 
 // CheckConfig checks if a given bitrate and samplerate is supported by the encoder
-func CheckConfig(freq, bitrate int) (int, error) {
-	sampleRateIndex, err := findSampleRateIndex(freq)
-	if err != nil {
-		return -1, err
+func CheckConfig(freq int, bitr int) mpegVersion {
+	var (
+		samplerate_index int
+		bitrate_index    int
+	)
+	samplerate_index = findSampleRateIndex(freq)
+	if samplerate_index < 0 {
+		return -1
 	}
-
-	mpegVersion := mpegVersion(sampleRateIndex)
-	_, err = findBitrateIndex(bitrate, mpegVersion)
-	if err != nil {
-		return -1, err
+	mpeg_version := getMpegVersion(samplerate_index)
+	bitrate_index = findBitrateIndex(bitr, mpeg_version)
+	if bitrate_index < 0 {
+		return -1
 	}
-	return mpegVersion, nil
+	return mpeg_version
 }
 
 // samplesPerPass returns the audio samples expected in each frame.
-func (c *GlobalConfig) samplesPerPass() int {
-	return c.MPEG.GranulesPerFrame * GRANULE_SIZE
+func (enc *Encoder) samplesPerPass() int64 {
+	return enc.Mpeg.GranulesPerFrame * GRANULE_SIZE
 }
+func NewEncoder(sampleRate, channels int) *Encoder {
+	var (
+		avg_slots_per_frame float64
+	)
 
-// Pass a pointer to a `config_t` structure and returns an initialized
-// encoder.
-//
-// Configuration data is copied over to the encoder. It is not possible
-// to change its values after initializing the encoder at the moment.
-//
-// Checking for valid configuration values is left for the application to
-// implement. You can use the `shine_find_bitrate_index` and
-// `shine_find_samplerate_index` functions or the `bitrates` and
-// `samplerates` arrays above to check those parameters. Mone and stereo
-// mode for wave and mpeg should also be consistent with each other.
-//
-// This function returns NULL if it was not able to allocate memory data for
-// the encoder.
-func (c *GlobalConfig) NewEncoder() (*GlobalConfig, error) {
+	enc := new(Encoder)
 
-	var err error
-	encoder := new(GlobalConfig)
-
-	subbandInitialize(c)
-	mdctInitialize(c)
-	loopInitialize(c)
-
-	encoder.Wave.Channels = c.Wave.Channels
-	encoder.Wave.SampleRate = c.Wave.SampleRate
-	encoder.MPEG.Mode = c.MPEG.Mode
-	encoder.MPEG.Bitrate = c.MPEG.Bitrate
-	encoder.MPEG.EmpH = c.MPEG.EmpH
-	encoder.MPEG.Copyright = c.MPEG.Copyright
-	encoder.MPEG.Original = c.MPEG.Original
-
-	encoder.MPEG.Layer = LAYER_III
-	encoder.MPEG.BitsPerSlot = 8
-
-	encoder.MPEG.SampleRateIndex, err = findSampleRateIndex(encoder.Wave.SampleRate)
-	if err != nil {
-		return nil, err
-	}
-	encoder.MPEG.Version = mpegVersion(encoder.MPEG.SampleRateIndex)
-	encoder.MPEG.BitrateIndex, err = findBitrateIndex(encoder.MPEG.Bitrate, encoder.MPEG.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	encoder.MPEG.GranulesPerFrame = mpegGranulesPerFrame[encoder.MPEG.Version]
-
-	// Figure average number of 'slots' per frame.
-	averageSlotsPerFrame := float64(encoder.MPEG.GranulesPerFrame*GRANULE_SIZE) / float64(encoder.Wave.SampleRate*1000.0*encoder.MPEG.Bitrate/encoder.MPEG.BitsPerSlot)
-	encoder.MPEG.WholeSlotsPerFrame = int(averageSlotsPerFrame)
-
-	encoder.MPEG.FractionSlotsPerFrame = averageSlotsPerFrame - float64(encoder.MPEG.WholeSlotsPerFrame)
-	encoder.MPEG.SlotLag = -encoder.MPEG.FractionSlotsPerFrame
-
-	if encoder.MPEG.FractionSlotsPerFrame == 0 {
-		encoder.MPEG.Padding = 0
-	}
-
-	encoder.bitstream.openBitstream(BUFFER_SIZE)
-
-	// determine the mean bitrate for main data
-	if encoder.MPEG.GranulesPerFrame == 2 {
-		// MPEG-I
-		lenMultiplier := 4 + 32
-		if encoder.Wave.Channels == 1 {
-			lenMultiplier = 4 + 17
-		}
-		encoder.sideInfoLen = 8 * lenMultiplier
+	if channels > 1 {
+		enc.Mpeg.Mode = STEREO
 	} else {
-		// MPEG-II
-		lenMultiplier := 4 + 17
-		if encoder.Wave.Channels == 1 {
-			lenMultiplier = 4 + 9
-		}
-		encoder.sideInfoLen = 8 * lenMultiplier
+		enc.Mpeg.Mode = MONO
 	}
-	return encoder, nil
-}
 
-func encodeBufferInternal(config *GlobalConfig, stride int) []byte {
-	if config.MPEG.FractionSlotsPerFrame != 0 {
-		if config.MPEG.SlotLag <= (config.MPEG.FractionSlotsPerFrame - 1.0) {
-			config.MPEG.Padding = 1
+	enc.subbandInitialize()
+	enc.mdctInitialize()
+	enc.loopInitialize()
+	enc.Wave.Channels = int64(channels)
+	enc.Wave.SampleRate = int64(sampleRate)
+	enc.Mpeg.Bitrate = 128
+	enc.Mpeg.Emph = NONE
+	enc.Mpeg.Copyright = 0
+	enc.Mpeg.Original = 1
+	enc.reservoirMaxSize = 0
+	enc.reservoirSize = 0
+	enc.Mpeg.Layer = int64(LAYER_III)
+	enc.Mpeg.Crc = 0
+	enc.Mpeg.Ext = 0
+	enc.Mpeg.ModeExt = 0
+	enc.Mpeg.BitsPerSlot = 8
+	enc.Mpeg.SampleRateIndex = int64(findSampleRateIndex(int(enc.Wave.SampleRate)))
+	enc.Mpeg.Version = getMpegVersion(int(enc.Mpeg.SampleRateIndex))
+	enc.Mpeg.BitrateIndex = int64(findBitrateIndex(int(enc.Mpeg.Bitrate), enc.Mpeg.Version))
+	enc.Mpeg.GranulesPerFrame = int64(mpegGranulesPerFrame[enc.Mpeg.Version])
+	avg_slots_per_frame = (float64(enc.Mpeg.GranulesPerFrame) * GRANULE_SIZE / (float64(enc.Wave.SampleRate))) * (float64(enc.Mpeg.Bitrate) * 1000 / float64(enc.Mpeg.BitsPerSlot))
+	enc.Mpeg.WholeSlotsPerFrame = int64(avg_slots_per_frame)
+	enc.Mpeg.FracSlotsPerFrame = avg_slots_per_frame - float64(enc.Mpeg.WholeSlotsPerFrame)
+	enc.Mpeg.Slot_lag = -enc.Mpeg.FracSlotsPerFrame
+	if enc.Mpeg.FracSlotsPerFrame == 0 {
+		enc.Mpeg.Padding = 0
+	}
+	enc.bitstream.open(BUFFER_SIZE)
+	if enc.Mpeg.GranulesPerFrame == 2 {
+		enc.sideInfoLen = (func() int64 {
+			if enc.Wave.Channels == 1 {
+				return 4 + 17
+			}
+			return 4 + 32
+		}()) * 8
+	} else {
+		enc.sideInfoLen = (func() int64 {
+			if enc.Wave.Channels == 1 {
+				return 4 + 9
+			}
+			return 4 + 17
+		}()) * 8
+	}
+	return enc
+}
+func (enc *Encoder) encodeBufferInternal(stride int) ([]uint8, int) {
+	if enc.Mpeg.FracSlotsPerFrame != 0 {
+		if enc.Mpeg.Slot_lag <= (enc.Mpeg.FracSlotsPerFrame - 1.0) {
+			enc.Mpeg.Padding = 1
 		} else {
-			config.MPEG.Padding = 0
+			enc.Mpeg.Padding = 0
+		}
+		enc.Mpeg.Slot_lag += float64(enc.Mpeg.Padding) - enc.Mpeg.FracSlotsPerFrame
+	}
+	enc.Mpeg.BitsPerFrame = (enc.Mpeg.WholeSlotsPerFrame + enc.Mpeg.Padding) * 8
+	enc.meanBits = (enc.Mpeg.BitsPerFrame - enc.sideInfoLen) / enc.Mpeg.GranulesPerFrame
+	enc.mdctSub(int64(stride))
+	enc.iterationLoop()
+	enc.formatBitstream()
+	written := enc.bitstream.dataPosition
+	enc.bitstream.dataPosition = 0
+	return enc.bitstream.data, written
+}
+
+func (enc *Encoder) encodeBufferInterleaved(data *int16) ([]uint8, int) {
+	enc.buffer[0] = data
+	if enc.Wave.Channels == 2 {
+		enc.buffer[1] = (*int16)(unsafe.Add(unsafe.Pointer(data), unsafe.Sizeof(int16(0))*1))
+	}
+	return enc.encodeBufferInternal(int(enc.Wave.Channels))
+}
+
+func (enc *Encoder) Write(out io.Writer, data []int16) error {
+	samples_per_pass := int(enc.samplesPerPass())
+
+	samplesRead := len(data)
+	for i := 0; i < samplesRead; i += samples_per_pass * 2 {
+		end := i + samples_per_pass
+		if end > samplesRead {
+			end = samplesRead
 		}
 
-		config.MPEG.SlotLag += (float64(config.MPEG.Padding) - config.MPEG.FractionSlotsPerFrame)
+		chunk := data[i:end]
+
+		// Encode and write the chunk to the output file.
+		data, written := enc.encodeBufferInterleaved(&chunk[0])
+		err := binary.Write(out, binary.LittleEndian, data[:written])
+		if err != nil {
+			return err
+		}
 	}
-
-	config.MPEG.BitsPerFrame = 8 * (config.MPEG.WholeSlotsPerFrame + config.MPEG.Padding)
-	config.meanBits = (config.MPEG.BitsPerFrame - config.sideInfoLen) /
-		config.MPEG.GranulesPerFrame
-
-	// Apply mdct to the polyphase output
-	mdctSub(config, stride)
-
-	// Bit and noise allocation
-	iterationLoop(config)
-
-	// Write the frame to the bitstream
-	formatBitstream(config)
-
-	// Return data.
-	// *written = config.bitstream.dataPosition
-	config.bitstream.dataPosition = 0
-
-	return config.bitstream.data
-}
-
-func encodeBuffer(config *GlobalConfig, data [][]int16, written *int) []byte {
-	config.buffer[0] = data[0]
-	if config.Wave.Channels == 2 {
-		config.buffer[1] = data[1]
-	}
-	return encodeBufferInternal(config, 1)
-}
-
-func encodeBufferInterleaved(config *GlobalConfig, data []int16) []byte {
-	config.buffer[0] = data
-	if config.Wave.Channels == 2 {
-		config.buffer[1] = data[1:]
-	}
-	return encodeBufferInternal(config, config.Wave.Channels)
-
-}
-
-func flush(config *GlobalConfig, written *int) []byte {
-	*written = config.bitstream.dataPosition
-	config.bitstream.dataPosition = 0
-	return config.bitstream.data
+	return nil
 }

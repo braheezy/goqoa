@@ -100,7 +100,7 @@ func TestConvertCmd(t *testing.T) {
 		actualChecksumStr := hex.EncodeToString(actualChecksum[:])
 
 		// Compare the checksums
-		require.Equalf(t, expectedChecksumStr, actualChecksumStr, "Conversion failed for %s -> %s", tc.inputFormat, tc.outputFormat)
+		require.Equalf(t, expectedChecksumStr, actualChecksumStr, "(%s) Conversion failed for %s -> %s", tc.audioFormat, tc.inputFormat, tc.outputFormat)
 
 		os.Remove(outputFilename)
 	}

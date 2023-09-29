@@ -6,16 +6,16 @@
 package mp3
 
 var (
-	slen1Table = [16]int32{
+	slen1Table = [16]int64{
 		0, 0, 0, 0, 3, 1, 1, 1,
 		2, 2, 2, 3, 3, 3, 4, 4,
 	}
-	slen2Table = [16]int32{
+	slen2Table = [16]int64{
 		0, 1, 2, 3, 0, 1, 2, 3,
 		1, 2, 3, 1, 2, 3, 2, 3,
 	}
 
-	sampleRates = [9]int32{
+	sampleRates = [9]int64{
 		// MPEG-1
 		44100, 48000, 32000,
 		// MPEG-II
@@ -24,7 +24,7 @@ var (
 		11025, 12000, 8000,
 	}
 
-	bitRates = [16][4]int32{
+	bitRates = [16][4]int64{
 		// MPEG version:
 		// 2.5, reserved, II, I
 		{-1, -1, -1, -1}, {8, -1, 8, 32}, {16, -1, 16, 40}, {24, -1, 24, 48},
@@ -33,7 +33,7 @@ var (
 		{-1, -1, 128, 224}, {-1, -1, 144, 256}, {-1, -1, 160, 320}, {-1, -1, -1, -1},
 	}
 
-	scaleFactorBandIndex = [9][23]int32{
+	scaleFactorBandIndex = [9][23]int64{
 		/* MPEG-I */
 		/* Table B.8.b: 44.1 kHz */
 		{0, 4, 8, 12, 16, 20, 24, 30, 36, 44, 52, 62,
@@ -67,18 +67,6 @@ var (
 			232, 280, 336, 400, 476, 566, 568, 570, 572, 574, 576},
 	}
 )
-
-// ew converts a floating point value to an int32.
-func ew(x float64) int32 {
-	return int32(x * float64(0x7fffffff))
-}
-func ew2(a, b float64) (int32, int32) {
-	return ew(a), ew(b)
-}
-func ew10(a, b, c, d, e, f, g, h, i, j float64) (int32, int32, int32, int32, int32, int32, int32, int32, int32, int32) {
-	return ew(a), ew(b), ew(c), ew(d), ew(e), ew(f), ew(g), ew(h), ew(i), ew(j)
-}
-
 var values = []float64{
 	0.000000, -0.000000, -0.000000, -0.000000, -0.000000, -0.000000,
 	-0.000000, -0.000001, -0.000001, -0.000001,
@@ -193,4 +181,7 @@ func createEnWindow() []int32 {
 		result = append(result, ew(val))
 	}
 	return result
+}
+func ew(x float64) int32 {
+	return int32(x * float64(0x7fffffff))
 }

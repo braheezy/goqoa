@@ -10,12 +10,6 @@ func mul(a, b int32) int32 {
 	return int32((int64(a) * int64(b)) >> 32)
 }
 
-// mulS is similar to mul but with signed integers.
-func mulS(a, b int32) int32 {
-	return int32((int64(a) * int64(b)) >> 31)
-}
-
-// mulR is similar to mul but with rounding.
 func mulR(a, b int32) int32 {
 	return int32(((int64(a) * int64(b)) + 0x80000000) >> 32)
 }

@@ -1,26 +1,48 @@
 package mp3
 
-import "math"
+import (
+	"math"
+	"unsafe"
+)
 
 // subbandInitialize calculates the analysis filterbank coefficients and rounds to the  9th decimal
 // place accuracy of the filterbank tables in the ISO document. The coefficients are stored in #filter#
-func subbandInitialize(config *GlobalConfig) {
-
-	for i := 0; i < MAX_CHANNELS; i++ {
-		config.subband.off[i] = 0
-		config.subband.x[i] = [HAN_SIZE]int32{}
+func (enc *Encoder) subbandInitialize() {
+	var (
+		i      int64
+		j      int64
+		filter float64
+	)
+	for i = MAX_CHANNELS; func() int64 {
+		p := &i
+		x := *p
+		*p--
+		return x
+	}() != 0; {
+		enc.subband.Off[i] = 0
+		enc.subband.X[i] = [HAN_SIZE]int32{}
 	}
-
-	for i := SUBBAND_LIMIT - 1; i >= 0; i-- {
-		for j := 63; j >= 0; j-- {
-			filter := 1e9 * math.Cos(float64((2*i+1)*(16-j))*PI64)
-			if filter >= 0 {
-				filter = math.Floor(filter + 0.5)
+	for i = SUBBAND_LIMIT; func() int64 {
+		p := &i
+		x := *p
+		*p--
+		return x
+	}() != 0; {
+		for j = 64; func() int64 {
+			p := &j
+			x := *p
+			*p--
+			return x
+		}() != 0; {
+			if (func() float64 {
+				filter = math.Cos(float64((i*2+1)*(16-j))*PI64) * 1e+09
+				return filter
+			}()) >= 0 {
+				filter, _ = math.Modf(filter + 0.5)
 			} else {
-				filter = math.Ceil(filter - 0.5)
+				filter, _ = math.Modf(filter - 0.5)
 			}
-			// Scale and convert to fixed point before storing
-			config.subband.fl[i][j] = int32(filter * (0x7fffffff * 1e-9))
+			enc.subband.Fl[i][j] = int32(filter * (math.MaxInt32 * 1e-09))
 		}
 	}
 }
@@ -31,47 +53,66 @@ func subbandInitialize(config *GlobalConfig) {
 // coefficients The windowed samples #z# is filtered by the digital filter matrix #filter# to produce the subband
 // samples #s#. This done by first selectively picking out values from the windowed samples, and then
 // multiplying them by the filter matrix, producing 32 subband samples.
-func windowFilterSubband(buffer *[2][]int16, s *[SUBBAND_LIMIT]int32, ch int, config *GlobalConfig, stride int) {
-	y := make([]int32, 64)
-	ptr := (*buffer)[0]
-	if len(ptr) == 0 {
-		return
+func (enc *Encoder) windowFilterSubband(buffer **int16, s *[32]int32, ch int64, stride int64) {
+	var (
+		y   [64]int32
+		i   int64
+		j   int64
+		ptr *int16 = *buffer
+	)
+	for i = 32; func() int64 {
+		p := &i
+		x := *p
+		*p--
+		return x
+	}() != 0; {
+		enc.subband.X[ch][i+enc.subband.Off[ch]] = int32(int64(int32(*ptr)) << 16)
+		ptr = (*int16)(unsafe.Add(unsafe.Pointer(ptr), unsafe.Sizeof(int16(0))*uintptr(stride)))
 	}
-
-	// Replace 32 oldest samples with 32 new samples
-	for i := int32(0); i < 32; i++ {
-		config.subband.x[ch][i+config.subband.off[ch]] = int32(ptr[0]) << 16
-		ptr = ptr[stride:]
+	*buffer = ptr
+	for i = 64; func() int64 {
+		p := &i
+		x := *p
+		*p--
+		return x
+	}() != 0; {
+		var (
+			s_value    int32
+			s_value_lo uint32
+		)
+		_ = s_value_lo
+		s_value = int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(0<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(0<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(1<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(1<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(2<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(2<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(3<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(3<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(4<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(4<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(5<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(5<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(6<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(6<<6)]))) >> 32)
+		s_value += int32(((int64(enc.subband.X[ch][(enc.subband.Off[ch]+i+(7<<6))&(HAN_SIZE-1)])) * (int64(enWindow[i+(7<<6)]))) >> 32)
+		y[i] = s_value
 	}
-	(*buffer)[0] = ptr
-
-	for i := int32(64 - 1); i >= 0; i-- {
-		sValue := mul(config.subband.x[ch][(config.subband.off[ch]+i+(0<<6))&(HAN_SIZE-1)], enWindow[i+(0<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(1<<6))&(HAN_SIZE-1)], enWindow[i+(1<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(2<<6))&(HAN_SIZE-1)], enWindow[i+(2<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(3<<6))&(HAN_SIZE-1)], enWindow[i+(3<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(4<<6))&(HAN_SIZE-1)], enWindow[i+(4<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(5<<6))&(HAN_SIZE-1)], enWindow[i+(5<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(6<<6))&(HAN_SIZE-1)], enWindow[i+(6<<6)])
-		sValue += mul(config.subband.x[ch][(config.subband.off[ch]+i+(7<<6))&(HAN_SIZE-1)], enWindow[i+(7<<6)])
-
-		y[i] = sValue
-	}
-
-	//offset is modulo (HAN_SIZE)
-	config.subband.off[ch] = (config.subband.off[ch] + 480) & (HAN_SIZE - 1)
-
-	for i := SUBBAND_LIMIT - 1; i >= 0; i-- {
-		sValue := mul(config.subband.fl[i][63], y[63])
-		for j := 63; j > 0; j -= 7 {
-			sValue += mul(config.subband.fl[i][j-1], y[j-1])
-			sValue += mul(config.subband.fl[i][j-2], y[j-2])
-			sValue += mul(config.subband.fl[i][j-3], y[j-3])
-			sValue += mul(config.subband.fl[i][j-4], y[j-4])
-			sValue += mul(config.subband.fl[i][j-5], y[j-5])
-			sValue += mul(config.subband.fl[i][j-6], y[j-6])
-			sValue += mul(config.subband.fl[i][j-7], y[j-7])
+	enc.subband.Off[ch] = (enc.subband.Off[ch] + 480) & (HAN_SIZE - 1)
+	for i = SUBBAND_LIMIT; func() int64 {
+		p := &i
+		x := *p
+		*p--
+		return x
+	}() != 0; {
+		var (
+			s_value    int32
+			s_value_lo uint32
+		)
+		_ = s_value_lo
+		s_value = int32(((int64(enc.subband.Fl[i][63])) * (int64(y[63]))) >> 32)
+		for j = 63; j != 0; j -= 7 {
+			s_value += int32(((int64(enc.subband.Fl[i][j-1])) * (int64(y[j-1]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-2])) * (int64(y[j-2]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-3])) * (int64(y[j-3]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-4])) * (int64(y[j-4]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-5])) * (int64(y[j-5]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-6])) * (int64(y[j-6]))) >> 32)
+			s_value += int32(((int64(enc.subband.Fl[i][j-7])) * (int64(y[j-7]))) >> 32)
 		}
-		s[i] = sValue
+		s[i] = s_value
 	}
 }
