@@ -1,5 +1,3 @@
-//go:build !windows
-
 package cmd
 
 import (
@@ -8,9 +6,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/braheezy/goqoa/pkg/mp3"
 	"github.com/braheezy/goqoa/pkg/qoa"
 	"github.com/tosone/minimp3"
-	"github.com/viert/go-lame"
 )
 
 func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
@@ -39,27 +37,13 @@ func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
 
 func encodeMp3(outputFile string, q *qoa.QOA, decodedData []int16) {
 	fmt.Println("Output format is MP3")
+
 	mp3File, err := os.Create(outputFile)
 	if err != nil {
 		log.Fatalf("Error creating MP3 file: %v", err)
 	}
 	defer mp3File.Close()
+	mp3Encoder := mp3.NewEncoder(int(q.SampleRate), int(q.Channels))
 
-	mp3Encoder := lame.NewEncoder(mp3File)
-	defer mp3Encoder.Close()
-
-	mp3Encoder.SetNumChannels(int(q.Channels))
-	mp3Encoder.SetInSamplerate(int(q.SampleRate))
-
-	// Convert the PCM data to a []byte
-	pcmBytes := make([]byte, len(decodedData)*2) // Assuming 16-bit PCM (2 bytes per sample)
-	for i, val := range decodedData {
-		binary.LittleEndian.PutUint16(pcmBytes[i*2:], uint16(val))
-	}
-
-	// Encode and write the PCM data to the MP3 file
-	_, err = mp3Encoder.Write(pcmBytes)
-	if err != nil {
-		log.Fatalf("Error encoding audio data to MP3: %v", err)
-	}
+	mp3Encoder.Write(mp3File, decodedData)
 }
