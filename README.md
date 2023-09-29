@@ -44,7 +44,8 @@ Then, install directly with Go:
     go install github.com/braheezy/goqoa@latest
 
 ## `qoa` Package
-The `qoa` package is a pure Go implementation
+The `qoa` package is a pure Go implementation.
+
 Decode a `.qoa` file:
 ```go
 data, _ := os.ReadFile("groovy-tunes.qoa")
