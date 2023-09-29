@@ -11,7 +11,6 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tosone/minimp3 v1.0.2
-	github.com/viert/go-lame v0.0.0-20201108052322-bb552596b11d
 )
 
 require (
