@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/braheezy/goqoa/pkg/mp3"
 	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/braheezy/shine-mp3/pkg/mp3"
 	"github.com/tosone/minimp3"
 )
 

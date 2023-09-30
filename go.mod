@@ -1,8 +1,9 @@
 module github.com/braheezy/goqoa
 
-go 1.21
+go 1.21.0
 
 require (
+	github.com/braheezy/shine-mp3 v0.1.0
 	github.com/ebitengine/oto/v3 v3.0.0
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0

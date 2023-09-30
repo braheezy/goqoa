@@ -1,3 +1,7 @@
+github.com/braheezy/shine-mp3 v0.0.0-20230929210133-8d7a7cfd1c97 h1:54iZU/8eIpY+gSn07ChXTfubtnVn6886TKvmvhAbFeA=
+github.com/braheezy/shine-mp3 v0.0.0-20230929210133-8d7a7cfd1c97/go.mod h1:0H/pmcpFAd+Fnrj6Pc7du7wL36U/HqtfcgPJuCgc1L4=
+github.com/braheezy/shine-mp3 v0.1.0 h1:N2wZhv6ipCFduTSftaPNdDgZ5xFmQAPvB7JcqA4sSi8=
+github.com/braheezy/shine-mp3 v0.1.0/go.mod h1:0H/pmcpFAd+Fnrj6Pc7du7wL36U/HqtfcgPJuCgc1L4=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/d4l3k/messagediff v1.2.2-0.20190829033028-7e0a312ae40b/go.mod h1:Oozbb1TVXFac9FtSIxHBMnBCq2qeH/2KkEQxENCrlLo=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
