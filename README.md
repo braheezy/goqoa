@@ -66,7 +66,7 @@ numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
 qoaFormat := qoa.NewEncoder(
   uint32(wavBuffer.Format.SampleRate),
   uint32(wavBuffer.Format.NumChannels),
-  samples)
+  numSamples)
 // Convert the audio data to int16 (QOA format)
 decodedData = make([]int16, len(wavBuffer.Data))
 for i, val := range wavBuffer.Data {
