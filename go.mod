@@ -8,7 +8,7 @@ require (
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
 	github.com/jfreymuth/oggvorbis v1.0.5
-	github.com/mewkiz/flac v1.0.8
+	github.com/mewkiz/flac v1.0.10
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tosone/minimp3 v1.0.2
