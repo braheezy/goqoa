@@ -27,7 +27,9 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: go build -v .
+        run: |
+          go build -ldflags="-s -w" -trimpath -buildvcs=false -v .
+          upx --brute goqoa.exe
 
       - name: Go Test
         run: go test -v ./...
@@ -55,7 +57,9 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: go build -o goqoa-mac -v .
+        run: |
+          go build -ldflags="-s -w" -trimpath -buildvcs=false -o goqoa-mac -v .
+          upx --brute goqoa-mac
 
       - name: Go Test
         run: go test -v ./...
@@ -86,7 +90,9 @@ jobs:
           sudo apt-get install -y libasound2-dev libmp3lame-dev
 
       - name: Build
-        run: go build -o goqoa-linux -v .
+        run: |
+          go build -ldflags="-s -w" -trimpath -buildvcs=false -o goqoa-linux -v .
+          upx --brute goqoa-linux
 
       - name: Go Test
         run: go test -v ./...
