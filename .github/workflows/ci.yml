@@ -93,11 +93,17 @@ jobs:
 
       - name: Build
         run: |
-          go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
+          go build -o goqoa-linux -v .
           upx --brute goqoa-linux
 
       - name: Go Test
         run: go test -v ./...
+
+      - name: Cache large spec pack
+        uses: actions/cache@v3
+        with:
+          key: qoa_test_samples
+          path: qoa_test_samples_2023_02_18.zip
 
       - name: Spec Test
         run: |
