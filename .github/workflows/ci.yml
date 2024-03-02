@@ -94,7 +94,7 @@ jobs:
       - name: Build
         run: |
           go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
-          upx --broke goqoa-linux
+          upx --brute goqoa-linux
 
       - name: Go Test
         run: go test -v ./...
