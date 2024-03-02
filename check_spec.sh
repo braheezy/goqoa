@@ -33,7 +33,6 @@ if [ ! -f $spec_zip ]; then
     fi
 fi
 
-echo "Processing $spec_zip..."
 # Extract random songs
 selected_songs=$(unzip -Z1 "$spec_zip" '*.wav' -x '*.qoa.wav' | shuf -n "$num_songs")
 
@@ -42,15 +41,11 @@ for song in $selected_songs; do
     song_filename=$(basename "$song")
     song_name="${song_filename%.*}"
 
-    echo "Extracting $song_name..."
     unzip -j -qq $spec_zip "*$song_name*" -d "$temp_dir"
 
-    echo "Converting $temp_dir/$song_name.wav to qoa..."
-    ls "$temp_dir/$song_name.wav"
     goqoa convert "$temp_dir/$song_name.wav" "$temp_dir/my-$song_name.qoa"
     size_compare "$temp_dir/$song_name.qoa" "$temp_dir/my-$song_name.qoa"
 
-    echo "Converting $song_name back to wav..."
     goqoa -h
     goqoa -q convert "$temp_dir/my-$song_name.qoa" "$temp_dir/my-$song_name.qoa.wav"
     size_compare "$temp_dir/$song_name.qoa.wav" "$temp_dir/my-$song_name.qoa.wav"
