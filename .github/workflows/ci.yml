@@ -92,9 +92,7 @@ jobs:
           sudo apt-get install -y libasound2-dev libmp3lame-dev
 
       - name: Build
-        run: |
-          go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
-          upx --brute goqoa-linux
+        run: go build -o goqoa-linux -v .
 
       - name: Go Test
         run: go test -v ./...
