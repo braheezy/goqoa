@@ -17,7 +17,7 @@ size_compare() {
     size2=$(stat -c %s "$2")
 
     if [ "$size1" != "$size2" ]; then
-        echo "Checksums do not match!"
+        echo "Sizes do not match!"
         echo "$1: $size1"
         echo "$2: $size2"
         exit 1
@@ -42,11 +42,14 @@ for song in $selected_songs; do
     song_filename=$(basename "$song")
     song_name="${song_filename%.*}"
 
+    echo "Extracting $song_name..."
     unzip -j -qq $spec_zip "*$song_name*" -d "$temp_dir"
 
+    echo "Converting $song_name to qoa..."
     goqoa -q convert "$temp_dir/$song_name.wav" "$temp_dir/my-$song_name.qoa"
     size_compare "$temp_dir/$song_name.qoa" "$temp_dir/my-$song_name.qoa"
 
+    echo "Converting $song_name back to wav..."
     goqoa -q convert "$temp_dir/my-$song_name.qoa" "$temp_dir/my-$song_name.qoa.wav"
     size_compare "$temp_dir/$song_name.qoa.wav" "$temp_dir/my-$song_name.qoa.wav"
 
