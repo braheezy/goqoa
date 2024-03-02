@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -55,6 +54,7 @@ func playQOA(inputFile string) {
 	player := ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
 
 	// Play the audio
+	logger.Debug("Starting audio...", "SampleRate", "44100", "ChannelCount", "2")
 	player.Play()
 
 	// player.IsPlaying() is the recommended approach but it never returns false for us.
@@ -65,9 +65,8 @@ func playQOA(inputFile string) {
 
 	// Close the player
 	if err := player.Close(); err != nil {
-		fmt.Println("Error closing player:", err)
+		logger.Fatalf("Error closing player: %v", err)
 	}
-
 }
 
 // NewQOAAudioReader creates a new QOAAudioReader instance.

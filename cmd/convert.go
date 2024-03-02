@@ -24,18 +24,13 @@ var convertCmd = &cobra.Command{
 	Long:  fmt.Sprintf("Convert between QOA and other audio formats. The supported audio formats are:\n%v", strings.Join(supportedFormats, "\n")),
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		if quiet {
-			// Redirect output to /dev/null
-			os.Stdout, _ = os.Open(os.DevNull)
-		}
-
 		inputFile := args[0]
 		outputFile := args[1]
 
 		if isSupportedConversion(inputFile, outputFile) {
 			convertAudio(inputFile, outputFile)
 		} else {
-			fmt.Println("Unsupported conversion")
+			logger.Fatal("Unsupported conversion")
 		}
 	},
 	DisableFlagsInUseLine: true,
@@ -77,8 +72,7 @@ func convertAudio(inputFile, outputFile string) {
 	// Load the input audio file
 	inputData, err := os.ReadFile(inputFile)
 	if err != nil {
-		fmt.Printf("Error loading audio file: %v\n", err)
-		return
+		logger.Fatalf("Error loading audio file: %v\n", err)
 	}
 
 	// For the given input file type, we will obtain these values
@@ -90,14 +84,13 @@ func convertAudio(inputFile, outputFile string) {
 	inExt := filepath.Ext(inputFile)
 	switch inExt {
 	case ".qoa":
-		fmt.Println("Input format is QOA")
+		logger.Info("Input format is QOA")
 		q, decodedData, err = qoa.Decode(inputData)
 		if err != nil {
 			log.Fatalf("Error decoding QOA data: %v", err)
 		}
-
 	case ".wav":
-		fmt.Println("Input format is WAV")
+		logger.Info("Input format is WAV")
 		wavReader := bytes.NewReader(inputData)
 		wavDecoder := wav.NewDecoder(wavReader)
 		wavBuffer, err := wavDecoder.FullPCMBuffer()
@@ -111,15 +104,17 @@ func convertAudio(inputFile, outputFile string) {
 		}
 
 		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+
+		logger.Debug(inputFile, "channels", wavBuffer.Format.NumChannels, "samplerate (hz)", wavBuffer.Format.SampleRate, "samples per channel", numSamples, "size", formatSize(len(inputData)))
+
 		q = qoa.NewEncoder(
 			uint32(wavBuffer.Format.SampleRate),
 			uint32(wavBuffer.Format.NumChannels),
 			numSamples)
-
 	case ".mp3":
 		decodedData, q = decodeMp3(&inputData)
 	case ".ogg":
-		fmt.Println("Input format is OGG")
+		logger.Info("Input format is OGG")
 		oggReader := bytes.NewReader(inputData)
 		oggData, format, err := oggvorbis.ReadAll(oggReader)
 		if err != nil {
@@ -140,7 +135,7 @@ func convertAudio(inputFile, outputFile string) {
 			uint32(numSamples),
 		)
 	case ".flac":
-		fmt.Println("Input format is FLAC")
+		logger.Info("Input format is FLAC")
 		flacStream, err := flac.Open(inputFile)
 		if err != nil {
 			log.Fatalf("Error opening FLAC file: %v", err)
@@ -178,7 +173,7 @@ func convertAudio(inputFile, outputFile string) {
 	outExt := filepath.Ext(outputFile)
 	switch outExt {
 	case ".qoa":
-		fmt.Println("Output format is QOA")
+		logger.Info("Output format is QOA")
 		// Encode the audio data
 		qoaEncodedData, err := q.Encode(decodedData)
 		if err != nil {
@@ -194,9 +189,8 @@ func convertAudio(inputFile, outputFile string) {
 		if err != nil {
 			log.Fatalf("Error writing QOA data: %v", err)
 		}
-
 	case ".wav":
-		fmt.Println("Output format is WAV")
+		logger.Info("Output format is WAV")
 		// Convert int16 to int for WAV conversion
 		intAudioData := make([]int, len(decodedData))
 		for i, val := range decodedData {
@@ -225,18 +219,29 @@ func convertAudio(inputFile, outputFile string) {
 			log.Fatalf("Error writing WAV data: %v", err)
 		}
 		defer wavEncoder.Close()
-
 	case ".mp3":
 		encodeMp3(outputFile, q, decodedData)
 	case ".ogg":
-		fmt.Println("Output format is OGG")
-		fmt.Println("And that's not supported yet...")
-		return
+		logger.Info("Output format is OGG")
+		logger.Fatal("And that's not supported yet...")
 	case ".flac":
-		fmt.Println("Output format is FLAC")
-		fmt.Println("And that's not supported yet...")
-		return
+		logger.Info("Output format is FLAC")
+		logger.Fatal("And that's not supported yet...")
 	}
 
-	fmt.Printf("Conversion completed: %s -> %s\n", inputFile, outputFile)
+	logger.Infof("Conversion completed: %s -> %s", inputFile, outputFile)
+}
+
+// formatSize converts the inputSize to a human readable format
+func formatSize(inputSize int) string {
+	const unit = 1024
+	if inputSize < unit {
+		return fmt.Sprintf("%d B", inputSize)
+	}
+	div, exp := int64(unit), 0
+	for n := inputSize / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.2f %cB", float64(inputSize)/float64(div), "KMGTPE"[exp])
 }

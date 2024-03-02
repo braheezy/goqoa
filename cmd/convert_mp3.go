@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"os"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
-	fmt.Println("Input format is MP3")
+	logger.Info("Input format is MP3")
 	dec, mp3Data, err := minimp3.DecodeFull(*inputData)
 	if err != nil {
 		log.Fatalf("Error decoding MP3 data: %v", err)
@@ -36,7 +35,7 @@ func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
 }
 
 func encodeMp3(outputFile string, q *qoa.QOA, decodedData []int16) {
-	fmt.Println("Output format is MP3")
+	logger.Info("Output format is MP3")
 
 	mp3File, err := os.Create(outputFile)
 	if err != nil {
