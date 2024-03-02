@@ -1,10 +1,10 @@
 package qoa
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/go-audio/wav"
@@ -28,7 +28,7 @@ func TestEncodeHeader(t *testing.T) {
 
 	qoa.encodeHeader(header)
 
-	if !reflect.DeepEqual(header, expectedHeader) {
+	if !bytes.Equal(header, expectedHeader) {
 		t.Errorf("Header encoding mismatch.\nExpected: %#v\nGot:      %#v", expectedHeader, header)
 	}
 }
