@@ -33,6 +33,7 @@ if [ ! -f $spec_zip ]; then
     fi
 fi
 
+echo "Processing $spec_zip..."
 # Extract random songs
 selected_songs=$(unzip -Z1 "$spec_zip" '*.wav' -x '*.qoa.wav' | shuf -n "$num_songs")
 
