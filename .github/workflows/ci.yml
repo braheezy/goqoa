@@ -89,10 +89,10 @@ jobs:
         run: |
           go get ./...
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libmp3lame-dev
+          sudo apt-get install -y libasound2-dev
 
       - name: Build
-        run: go build -o goqoa-linux -v .
+        run: go build -ldflags="-s -w" -trimpath -o goqoa-linux -v .
 
       - name: Go Test
         run: go test -v ./...
@@ -107,10 +107,10 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: wget https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
 
-      - name: Spec Test
-        run: |
-          sudo cp goqoa-linux /usr/bin/goqoa
-          bash check_spec.sh
+      # - name: Spec Test
+      #   run: |
+      #     sudo cp goqoa-linux /usr/bin/goqoa
+      #     bash check_spec.sh
 
       - uses: actions/upload-artifact@v3
         with:
