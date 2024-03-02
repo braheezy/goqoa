@@ -92,8 +92,8 @@ jobs:
 
       - name: Build
         run: |
-          go build -ldflags="-s -w" -trimpath -buildvcs=false -o goqoa-linux -v .
-          upx goqoa-linux
+          go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
+          upx --best goqoa-linux
 
       - name: Go Test
         run: go test -v ./...
@@ -105,13 +105,12 @@ jobs:
           path: qoa_test_samples_2023_02_18.zip
 
       - name: Download large spec pack
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: wget https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+        run: wget --timestamping https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
 
-      # - name: Spec Test
-      #   run: |
-      #     sudo cp goqoa-linux /usr/bin/goqoa
-      #     bash check_spec.sh
+      - name: Spec Test
+        run: |
+          sudo cp goqoa-linux /usr/bin/goqoa
+          bash check_spec.sh
 
       - uses: actions/upload-artifact@v4
         with:
