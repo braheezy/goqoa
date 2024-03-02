@@ -27,9 +27,13 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: |
-          go build -ldflags="-s -w" -trimpath -buildvcs=false -v .
-          upx --brute goqoa.exe
+        run: go build -ldflags="-s -w" -trimpath -buildvcs=false -v .
+
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          files: goqoa.exe
+          args: --brute
 
       - name: Go Test
         run: go test -v ./...
@@ -57,9 +61,7 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: |
-          go build -ldflags="-s -w" -trimpath -buildvcs=false -o goqoa-mac -v .
-          upx --brute goqoa-mac
+        run: go build -ldflags="-s -w" -trimpath -buildvcs=false -o goqoa-mac -v .
 
       - name: Go Test
         run: go test -v ./...
