@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,14 +106,14 @@ func convertAudio(inputFile, outputFile string) {
 
 		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
 
-		logger.Debug(inputFile, "channels", wavBuffer.Format.NumChannels, "samplerate (hz)", wavBuffer.Format.SampleRate, "samples per channel", numSamples, "size", formatSize(len(inputData)))
-
 		q = qoa.NewEncoder(
 			uint32(wavBuffer.Format.SampleRate),
 			uint32(wavBuffer.Format.NumChannels),
 			numSamples)
+
+		logger.Debug(inputFile, "channels", wavBuffer.Format.NumChannels, "samplerate(hz)", wavBuffer.Format.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
 	case ".mp3":
-		decodedData, q = decodeMp3(&inputData)
+		decodedData, q = decodeMp3(&inputData, inputFile)
 	case ".ogg":
 		logger.Info("Input format is OGG")
 		oggReader := bytes.NewReader(inputData)
@@ -134,6 +135,8 @@ func convertAudio(inputFile, outputFile string) {
 			uint32(format.Channels),
 			uint32(numSamples),
 		)
+
+		logger.Debug(inputFile, "channels", format.Channels, "samplerate(hz)", format.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
 	case ".flac":
 		logger.Info("Input format is FLAC")
 		flacStream, err := flac.Open(inputFile)
@@ -168,6 +171,8 @@ func convertAudio(inputFile, outputFile string) {
 			uint32(flacMetadata.NChannels),
 			uint32(numSamples),
 		)
+
+		logger.Debug(inputFile, "channels", flacMetadata.NChannels, "samplerate(hz)", flacMetadata.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
 	}
 
 	outExt := filepath.Ext(outputFile)
@@ -189,6 +194,11 @@ func convertAudio(inputFile, outputFile string) {
 		if err != nil {
 			log.Fatalf("Error writing QOA data: %v", err)
 		}
+
+		psnr := -20.0 * math.Log10(math.Sqrt(float64(q.ErrorCount/int(q.Samples*q.Channels)))/32768.0)
+
+		bitrate := (float64(len(qoaEncodedData)*8) / float64(q.Samples/q.SampleRate)) / 1024
+		logger.Debug(outputFile, "size", formatSize(len(qoaEncodedData)), "bitrate", bitrate, "psnr", fmt.Sprintf("%0.2f", psnr))
 	case ".wav":
 		logger.Info("Output format is WAV")
 		// Convert int16 to int for WAV conversion

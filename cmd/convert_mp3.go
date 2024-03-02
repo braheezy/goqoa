@@ -10,7 +10,7 @@ import (
 	"github.com/tosone/minimp3"
 )
 
-func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
+func decodeMp3(inputData *[]byte, filename string) ([]int16, *qoa.QOA) {
 	logger.Info("Input format is MP3")
 	dec, mp3Data, err := minimp3.DecodeFull(*inputData)
 	if err != nil {
@@ -31,6 +31,8 @@ func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
 		uint32(dec.Channels),
 		uint32(numSamples),
 	)
+
+	logger.Debug(filename, "channels", dec.Channels, "samplerate(hz)", dec.SampleRate, "samples/channel", numSamples, "size", formatSize(len(*inputData)))
 	return decodedData, q
 }
 
