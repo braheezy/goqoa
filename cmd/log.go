@@ -16,6 +16,7 @@ func setupLogger() {
 		logger.SetLevel(log.DebugLevel)
 	} else if quiet {
 		// Redirect output to /dev/null
-		os.Stdout, _ = os.Open(os.DevNull)
+		nullLogWriter, _ := os.Open(os.DevNull)
+		logger.SetOutput(nullLogWriter)
 	}
 }
