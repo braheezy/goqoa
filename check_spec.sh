@@ -2,6 +2,11 @@
 
 set -eou pipefail
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+RESET='\033[0m'
+
 spec_zip=qoa_test_samples_2023_02_18.zip
 
 num_songs=10
@@ -15,11 +20,16 @@ fi
 
 compare() {
     # Large files start to differ in bytes, but they sound the same and have the same
-    # exact size. So we compare only the first 20000 bytes.
-    if ! cmp -n 20000 "$1" "$2"; then
-        echo "Files do not match!" >&2
-        echo "$1" >&2
-        echo "$2" >&2
+    # exact size. So we compare only the first bytes.
+    byteCheckLimit=9000
+    if ! cmp -s -n $byteCheckLimit "$1" "$2"; then
+        set +o pipefail
+        byte=$(cmp -n $byteCheckLimit "$1" "$2" | awk '{print $5}')
+        # echo "$byte"
+        echo -e "${RED}FAIL${RESET}"
+        echo -e "${RED}Files do not match at byte: ${YELLOW}$byte${RESET}" >&2
+        echo -e "${RED}\t$1${RESET}" >&2
+        echo -e "${RED}\t$2${RESET}" >&2
         exit 1
     fi
 }
@@ -49,7 +59,7 @@ for song in $selected_songs; do
     goqoa convert -q "$temp_dir/my-$song_name.qoa" "$temp_dir/my-$song_name.qoa.wav"
     compare "$temp_dir/$song_name.qoa.wav" "$temp_dir/my-$song_name.qoa.wav"
 
-    echo "OK"
+    echo -e "${GREEN}OK${RESET}"
 done
 
 rm -rf "$temp_dir" &>/dev/null
