@@ -93,7 +93,7 @@ jobs:
 
       - name: Build
         run: |
-          go build -o goqoa-linux -v .
+          go build -o -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false goqoa-linux -v .
           upx --brute goqoa-linux
 
       - name: Go Test
@@ -104,6 +104,10 @@ jobs:
         with:
           key: qoa_test_samples
           path: qoa_test_samples_2023_02_18.zip
+
+      - name: Download large spec pack
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: wget https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
 
       - name: Spec Test
         run: |

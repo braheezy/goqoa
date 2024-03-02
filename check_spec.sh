@@ -45,7 +45,8 @@ for song in $selected_songs; do
     echo "Extracting $song_name..."
     unzip -j -qq $spec_zip "*$song_name*" -d "$temp_dir"
 
-    echo "Converting $song_name to qoa..."
+    echo "Converting $song_name.wav to qoa..."
+    ls "$temp_dir/$song_name.wav"
     goqoa -q convert "$temp_dir/$song_name.wav" "$temp_dir/my-$song_name.qoa"
     size_compare "$temp_dir/$song_name.qoa" "$temp_dir/my-$song_name.qoa"
 
