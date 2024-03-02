@@ -51,6 +51,7 @@ for song in $selected_songs; do
     size_compare "$temp_dir/$song_name.qoa" "$temp_dir/my-$song_name.qoa"
 
     echo "Converting $song_name back to wav..."
+    goqoa -h
     goqoa -q convert "$temp_dir/my-$song_name.qoa" "$temp_dir/my-$song_name.qoa.wav"
     size_compare "$temp_dir/$song_name.qoa.wav" "$temp_dir/my-$song_name.qoa.wav"
 
