@@ -87,7 +87,7 @@ jobs:
         run: |
           go get ./...
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libmp3lame-dev
+          sudo apt-get install -y libasound2-dev
 
       - name: Build
         run: |

@@ -35,9 +35,9 @@ The easiest way is a pre-built binary on the [Releases](https://github.com/brahe
 Otherwise, install prerequisites for your platform:
 
     # Fedora
-    yum install gcc alsa-lib-devel lame-devel
+    yum install gcc alsa-lib-devel
     # Debian
-    apt-get install gcc pkg-config libasound2-dev libmp3lame-dev
+    apt-get install gcc pkg-config libasound2-dev
 
 Then, install directly with Go:
 
