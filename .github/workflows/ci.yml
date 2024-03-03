@@ -140,3 +140,4 @@ jobs:
             */goqoa-linux
             */goqoa.exe
             */goqoa-mac
+          generate_release_notes: true
