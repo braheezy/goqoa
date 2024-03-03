@@ -34,21 +34,6 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	p += 8
 
 	for c := uint32(0); c < channels; c++ {
-		// /* If the weights have grown too large, reset them to 0. This may happen
-		// with certain high-frequency sounds. This is a last resort and will
-		// introduce quite a bit of noise, but should at least prevent pops/clicks */
-		// weightsSum :=
-		// 	int(q.LMS[c].Weights[0]*q.LMS[c].Weights[0] +
-		// 		q.LMS[c].Weights[1]*q.LMS[c].Weights[1] +
-		// 		q.LMS[c].Weights[2]*q.LMS[c].Weights[2] +
-		// 		q.LMS[c].Weights[3]*q.LMS[c].Weights[3])
-		// if weightsSum > 0x2fffffff {
-		// 	q.LMS[c].Weights[0] = 0
-		// 	q.LMS[c].Weights[1] = 0
-		// 	q.LMS[c].Weights[2] = 0
-		// 	q.LMS[c].Weights[3] = 0
-		// }
-
 		// Write the current LMS state
 		history := uint64(0)
 		weights := uint64(0)
@@ -105,10 +90,11 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 
 					// If the weights have grown too large, we introduce a penalty here. This prevents pops/clicks
 					// in certain problem cases.
-					weightsPenalty := (int(q.LMS[c].Weights[0]*q.LMS[c].Weights[0]+
-						q.LMS[c].Weights[1]*q.LMS[c].Weights[1]+
-						q.LMS[c].Weights[2]*q.LMS[c].Weights[2]+
-						q.LMS[c].Weights[3]*q.LMS[c].Weights[3]) >> 18) - 0x8ff
+					weightsPenalty := (int(
+						q.LMS[c].Weights[0]*q.LMS[c].Weights[0]+
+							q.LMS[c].Weights[1]*q.LMS[c].Weights[1]+
+							q.LMS[c].Weights[2]*q.LMS[c].Weights[2]+
+							q.LMS[c].Weights[3]*q.LMS[c].Weights[3]) >> 18) - 0x8ff
 					if weightsPenalty < 0 {
 						weightsPenalty = 0
 					}
@@ -190,7 +176,7 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	q.ErrorCount = 0
 
 	frameLen := uint32(QOAFrameLen)
-	for sampleIndex := uint32(0); sampleIndex < q.Samples; sampleIndex += uint32(frameLen) {
+	for sampleIndex := uint32(0); sampleIndex < q.Samples; sampleIndex += frameLen {
 		frameLen = uint32(clamp(QOAFrameLen, 0, int(q.Samples-sampleIndex)))
 		frameSamples := sampleData[sampleIndex*q.Channels : (sampleIndex+frameLen)*q.Channels]
 		frameSize := q.encodeFrame(frameSamples, frameLen, bytes[p:])

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"os"
 
@@ -11,8 +10,8 @@ import (
 	"github.com/tosone/minimp3"
 )
 
-func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
-	fmt.Println("Input format is MP3")
+func decodeMp3(inputData *[]byte, filename string) ([]int16, *qoa.QOA) {
+	logger.Info("Input format is MP3")
 	dec, mp3Data, err := minimp3.DecodeFull(*inputData)
 	if err != nil {
 		log.Fatalf("Error decoding MP3 data: %v", err)
@@ -32,11 +31,13 @@ func decodeMp3(inputData *[]byte) ([]int16, *qoa.QOA) {
 		uint32(dec.Channels),
 		uint32(numSamples),
 	)
+
+	logger.Debug(filename, "channels", dec.Channels, "samplerate(hz)", dec.SampleRate, "samples/channel", numSamples, "size", formatSize(len(*inputData)))
 	return decodedData, q
 }
 
 func encodeMp3(outputFile string, q *qoa.QOA, decodedData []int16) {
-	fmt.Println("Output format is MP3")
+	logger.Info("Output format is MP3")
 
 	mp3File, err := os.Create(outputFile)
 	if err != nil {
