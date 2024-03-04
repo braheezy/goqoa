@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"log"
 	"os"
 	"time"
 
@@ -27,13 +26,13 @@ func init() {
 func playQOA(inputFile string) {
 	qoaBytes, err := os.ReadFile(inputFile)
 	if err != nil {
-		log.Fatalf("Error reading QOA file: %v", err)
+		logger.Fatalf("Error reading QOA file: %v", err)
 	}
 
 	// Decode the QOA audio data
 	_, qoaAudioData, err := qoa.Decode(qoaBytes)
 	if err != nil {
-		log.Fatalf("Error decoding QOA data: %v", err)
+		logger.Fatalf("Error decoding QOA data: %v", err)
 	}
 
 	// Prepare an Oto context (this will use your default audio device)
