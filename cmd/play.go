@@ -57,7 +57,7 @@ func playQOA(inputFiles []string) {
 
 		// Play the audio
 		logger.Debug(
-			"Starting audio...",
+			"Starting audio",
 			"File",
 			inputFile,
 			"SampleRate",
