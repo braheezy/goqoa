@@ -19,7 +19,7 @@ Usage:
 Available Commands:
   convert     Convert between QOA and other audio formats
   help        Help about any command
-  play        Play a .qoa audio file
+  play        Play .qoa audio file(s)
   version     Print the version
 
 Flags:
