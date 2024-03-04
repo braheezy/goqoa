@@ -99,4 +99,6 @@ for song in $selected_songs; do
     echo -e "${GREEN}OK${RESET}"
 done
 
-rm -rf "$temp_dir" &>/dev/null
+if [ "$mode" != "-a" ]; then
+    rm -rf "$temp_dir" &>/dev/null
+fi
