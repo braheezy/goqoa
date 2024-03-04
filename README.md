@@ -27,7 +27,7 @@ Flags:
   -q, --quiet     Suppress command output
   -v, --verbose   Increase command output
 
-Use "goqoa [command] --help" for more information about a command.
+Use "goqoa help [command]" for more information about a command.
 ```
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
