@@ -95,6 +95,12 @@ type QOAAudioReader struct {
 
 func (r *QOAAudioReader) Read(p []byte) (n int, err error) {
 	samplesToRead := len(p) / 2
+
+	if r.pos >= len(r.data) {
+		// Return EOF when there is no more data to read
+		return 0, io.EOF
+	}
+
 	if samplesToRead > len(r.data)-r.pos {
 		samplesToRead = len(r.data) - r.pos
 	}
