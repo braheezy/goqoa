@@ -4,20 +4,20 @@ go 1.21.0
 
 require (
 	github.com/braheezy/shine-mp3 v0.1.0
+	github.com/charmbracelet/log v0.3.1
 	github.com/ebitengine/oto/v3 v3.1.0
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.10
 	github.com/spf13/cobra v1.8.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/tosone/minimp3 v1.0.2
 )
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/lipgloss v0.9.1 // indirect
-	github.com/charmbracelet/log v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.6.0 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
