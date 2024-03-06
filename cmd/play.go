@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -24,6 +25,26 @@ func init() {
 	rootCmd.AddCommand(playCmd)
 }
 
+func isValidQOAFile(inputFile string) (bool, error) {
+	// Read first 4 bytes of the file
+	fileBytes := make([]byte, 4)
+	file, err := os.Open(inputFile)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	_, err = file.Read(fileBytes)
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+
+	// Check if the first 4 bytes are magic word `qoaf`
+	if string(fileBytes) != "qoaf" {
+		return false, fmt.Errorf("no magic word 'qoaf' found in %s", inputFile)
+	}
+	return true, nil
+}
 func playQOA(inputFiles []string) {
 
 	// Prepare an Oto context (this will use your default audio device)
@@ -38,6 +59,11 @@ func playQOA(inputFiles []string) {
 	}
 
 	for _, inputFile := range inputFiles {
+		_, err := isValidQOAFile(inputFile)
+		if err != nil {
+			logger.Fatalf("Error validating QOA file: %v", err)
+		}
+
 		qoaBytes, err := os.ReadFile(inputFile)
 		if err != nil {
 			logger.Fatalf("Error reading QOA file: %v", err)
