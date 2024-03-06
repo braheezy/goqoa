@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -11,11 +12,11 @@ import (
 
 var playCmd = &cobra.Command{
 	Use:   "play <input-file>",
-	Short: "Play a .qoa audio file",
-	Args:  cobra.ExactArgs(1),
+	Short: "Play .qoa audio file(s)",
+	Long:  "Provide one or more QOA files to play.",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		inputFile := args[0]
-		playQOA(inputFile)
+		playQOA(args[0:])
 	},
 }
 
@@ -23,17 +24,7 @@ func init() {
 	rootCmd.AddCommand(playCmd)
 }
 
-func playQOA(inputFile string) {
-	qoaBytes, err := os.ReadFile(inputFile)
-	if err != nil {
-		logger.Fatalf("Error reading QOA file: %v", err)
-	}
-
-	// Decode the QOA audio data
-	_, qoaAudioData, err := qoa.Decode(qoaBytes)
-	if err != nil {
-		logger.Fatalf("Error decoding QOA data: %v", err)
-	}
+func playQOA(inputFiles []string) {
 
 	// Prepare an Oto context (this will use your default audio device)
 	ctx, ready, err := oto.NewContext(
@@ -46,25 +37,45 @@ func playQOA(inputFile string) {
 		panic("oto.NewContext failed: " + err.Error())
 	}
 
-	// Wait for the context to be ready
-	<-ready
+	for _, inputFile := range inputFiles {
+		qoaBytes, err := os.ReadFile(inputFile)
+		if err != nil {
+			logger.Fatalf("Error reading QOA file: %v", err)
+		}
 
-	// Create a new player with the custom QOAAudioReader
-	player := ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
+		// Decode the QOA audio data
+		_, qoaAudioData, err := qoa.Decode(qoaBytes)
+		if err != nil {
+			logger.Fatalf("Error decoding QOA data: %v", err)
+		}
 
-	// Play the audio
-	logger.Debug("Starting audio...", "SampleRate", "44100", "ChannelCount", "2")
-	player.Play()
+		// Wait for the context to be ready
+		<-ready
 
-	// player.IsPlaying() is the recommended approach but it never returns false for us.
-	// This method of checking the unplayed buffer size also works.
-	for player.BufferedSize() != 0 {
-		time.Sleep(time.Millisecond)
-	}
+		// Create a new player with the custom QOAAudioReader
+		player := ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
 
-	// Close the player
-	if err := player.Close(); err != nil {
-		logger.Fatalf("Error closing player: %v", err)
+		// Play the audio
+		logger.Debug(
+			"Starting audio",
+			"File",
+			inputFile,
+			"SampleRate",
+			"44100",
+			"ChannelCount",
+			"2",
+			"BufferedSize",
+			player.BufferedSize())
+		player.Play()
+
+		for player.IsPlaying() {
+			time.Sleep(time.Millisecond)
+		}
+
+		// Close the player
+		if err := player.Close(); err != nil {
+			logger.Fatalf("Error closing player: %v", err)
+		}
 	}
 }
 
@@ -84,6 +95,12 @@ type QOAAudioReader struct {
 
 func (r *QOAAudioReader) Read(p []byte) (n int, err error) {
 	samplesToRead := len(p) / 2
+
+	if r.pos >= len(r.data) {
+		// Return EOF when there is no more data to read
+		return 0, io.EOF
+	}
+
 	if samplesToRead > len(r.data)-r.pos {
 		samplesToRead = len(r.data) - r.pos
 	}
