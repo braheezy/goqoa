@@ -13,7 +13,6 @@ $ goqoa help
 A CLI tool to play and convert QOA audio files.
 
 Usage:
-  goqoa [flags]
   goqoa [command]
 
 Available Commands:
@@ -27,7 +26,7 @@ Flags:
   -q, --quiet     Suppress command output
   -v, --verbose   Increase command output
 
-Use "goqoa help [command]" for more information about a command.
+Use "goqoa [command] --help" for more information about a command.
 ```
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
@@ -77,7 +76,7 @@ for i, val := range wavBuffer.Data {
 }
 
 // Finally, encode the audio data
-qoaEncodedData, err := q.Encode(decodedData)
+qoaEncodedData, err := qoa.Encode(decodedData)
 ```
 
 ## Development
