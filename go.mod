@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/braheezy/shine-mp3 v0.1.0
 	github.com/charmbracelet/log v0.3.1
-	github.com/ebitengine/oto/v3 v3.1.0
+	github.com/ebitengine/oto/v3 v3.1.1
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
 	github.com/jfreymuth/oggvorbis v1.0.5
@@ -19,7 +19,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/lipgloss v0.9.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/ebitengine/purego v0.6.0 // indirect
+	github.com/ebitengine/purego v0.6.1 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/icza/bitio v1.1.0 // indirect
