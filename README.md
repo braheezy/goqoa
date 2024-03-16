@@ -103,6 +103,11 @@ The check uses `cmp` to check each byte in each produced file. For an unknown re
 - `check_spec.h` to check a small amount bytes for a small amount of files
 - `check_spec.sh -a` to check all 150 songs and record `failures`
 
+## Fuzz Testing
+The `qoa` package has a fuzz unit test to examine the `Encode()` and `Decode()` functions.
+
+`fuzz/create_fuzzy_files.py` generates valid QOA files with random data.
+
 ---
 ## Disclaimer
 I have never written software that deals with audio files before. I saw a post about QOA on HackerNews and found the name amusing. There were many ports to other languages, but Go was not listed. So here we are!
