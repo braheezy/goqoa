@@ -70,7 +70,7 @@ func playQOA(inputFiles []string) {
 		}
 
 		// Decode the QOA audio data
-		_, qoaAudioData, err := qoa.Decode(qoaBytes)
+		qoaMetadata, qoaAudioData, err := qoa.Decode(qoaBytes)
 		if err != nil {
 			logger.Fatalf("Error decoding QOA data: %v", err)
 		}
@@ -87,9 +87,9 @@ func playQOA(inputFiles []string) {
 			"File",
 			inputFile,
 			"SampleRate",
-			"44100",
+			qoaMetadata.SampleRate,
 			"ChannelCount",
-			"2",
+			qoaMetadata.Channels,
 			"BufferedSize",
 			player.BufferedSize())
 		player.Play()
