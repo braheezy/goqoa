@@ -2,8 +2,10 @@ package qoa
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"testing"
 
@@ -277,4 +279,77 @@ func TestBasicEncode(t *testing.T) {
 
 	assert.Nil(t, err, "Unexpected error")
 	assert.NotEmpty(t, qoaEncodedData, "Expected QOA encoded data")
+}
+func FuzzEncodeDecode(f *testing.F) {
+	// Values to fuzz with, taken from the QOA spec
+	MIN_CHANNELS := 1
+	MAX_CHANNELS := 255
+	MIN_SAMPLE_RATE := 1
+	MAX_SAMPLE_RATE := 16777215
+	// 1 channel, minimum slices (assuming at least 1 slice is required)
+	MIN_SIZE := 8 + (8 + (16 * 1) + (256 * 8 * 1))
+	// 1 channel, size to just exceed one frame, requiring part of a second frame
+	SIZE_MULTIPLE_FRAMES := 8 + 2*(8+(16*1)+(256*8*1))
+	SIZE_MAX_CHANNELS := 8 + (8 + (16 * 255) + (256 * 8 * 255))
+
+	f.Add(generateFuzzData(MIN_SIZE, 0x7FFF), uint32(MIN_CHANNELS), uint32(MIN_SAMPLE_RATE))
+	f.Add(generateFuzzData(SIZE_MULTIPLE_FRAMES, -0x8000), uint32(MIN_CHANNELS), uint32(MIN_SAMPLE_RATE))
+	f.Add(generateFuzzData(SIZE_MAX_CHANNELS, 0x0000), uint32(MIN_CHANNELS), uint32(MIN_SAMPLE_RATE))
+
+	f.Add(generateFuzzData(MIN_SIZE, 0x0000), uint32(MAX_CHANNELS), uint32(MAX_SAMPLE_RATE))
+	f.Add(generateFuzzData(SIZE_MULTIPLE_FRAMES, -0x8000), uint32(MAX_CHANNELS), uint32(MAX_SAMPLE_RATE))
+	f.Add(generateFuzzData(SIZE_MAX_CHANNELS, 0x0000), uint32(MAX_CHANNELS), uint32(MIN_SAMPLE_RATE))
+
+	f.Fuzz(func(t *testing.T, data []byte, channels uint32, sampleRate uint32) {
+		if len(data)%2 != 0 {
+			// Ensure data length is even, as we're converting to int16
+			return
+		}
+
+		// Convert []byte to []int16 for testing
+		var originalSamples []int16
+		for i := 0; i < len(data); i += 2 {
+			sample := int16(binary.BigEndian.Uint16(data[i : i+2]))
+			originalSamples = append(originalSamples, sample)
+		}
+
+		// Setup QOA struct with random but valid data
+		q := QOA{
+			Channels:   channels,
+			SampleRate: sampleRate,
+			Samples:    uint32(len(originalSamples)) / channels,
+		}
+
+		// Encode the sample data
+		encodedBytes, err := q.Encode(originalSamples)
+		if err != nil {
+			t.Logf("Failed to encode: %v", err)
+		}
+
+		// Decode the encoded bytes
+		decodedQOA, _, err := Decode(encodedBytes)
+		if err != nil {
+			t.Logf("Failed to decode: %v", err)
+		} else {
+
+			psnr := -20.0 * math.Log10(math.Sqrt(float64(q.ErrorCount)/float64(q.Samples*q.Channels))/32768.0)
+
+			// Check if decoded data is reasonable
+			// Is there a better way to check lossy-compressed roundtrip bytes to original?
+			assert.Greater(t, psnr, 30.0, "PSNR of decoded QOA bytes is bad")
+
+			// Additional checks can be added here, such as verifying other fields in the QOA struct
+			if decodedQOA.Channels != channels || decodedQOA.SampleRate != sampleRate || decodedQOA.Samples != uint32(len(originalSamples))/channels {
+				t.Errorf("Decoded QOA struct fields do not match original")
+			}
+		}
+	})
+}
+
+func generateFuzzData(size int, seedValue int16) []byte {
+	data := make([]byte, size)
+	for i := 0; i < size; i += 2 {
+		binary.BigEndian.PutUint16(data[i:i+2], uint16(seedValue))
+	}
+	return data
 }

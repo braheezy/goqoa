@@ -6,3 +6,4 @@ dist/
 /*.qoa
 /*.ogg
 /*.flac
+/fuzz/*.qoa
