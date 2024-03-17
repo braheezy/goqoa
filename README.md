@@ -6,35 +6,23 @@
 
 A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
 
-The `goqoa` CLI tool provides basic functions for working with `.qoa` files.
-
-```bash
-$ goqoa help
-A CLI tool to play and convert QOA audio files.
-
-Usage:
-  goqoa [command]
-
-Available Commands:
-  convert     Convert between QOA and other audio formats
-  help        Help about any command
-  play        Play .qoa audio file(s)
-  version     Print the version
-
-Flags:
-  -h, --help      help for goqoa
-  -q, --quiet     Suppress command output
-  -v, --verbose   Increase command output
-
-Use "goqoa [command] --help" for more information about a command.
-```
+Features:
+- `qoa` library package for QOA encoding and decoding
+  - Go standard library only
+  - Fuzz testing coverage
+- `goqoa` CLI tool
+  - `convert` your WAV, FLAC, OGG, or MP3 files to QOA
+  - `convert` your QOA files to WAV or MP3
+  - All conversions are in pure Go, no C libraries to install
+  - `play` QOA file(s)
+  - Pre-built binaries for Linux, Windows, and Mac
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
 ## Install
 The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
 
-Otherwise, install prerequisites for your platform:
+Otherwise, install [prerequisites](https://github.com/ebitengine/oto#prerequisite) for your platform:
 
     # Fedora
     yum install gcc alsa-lib-devel
@@ -100,8 +88,8 @@ To further examine fidelity, the `check_spec.sh` script is used. It does the fol
 
 The check uses `cmp` to check each byte in each produced file. For an unknown reason, not all files pass this check. The failing files are the exact same size and when played, sound the same. Perhaps it's rounding error differences between Go and C, or bad reference files, or other such noise. It does appear to the same suspect files everytime. Anyway, you have been warned.
 
-- `check_spec.h` to check a small amount bytes for a small amount of files
-- `check_spec.sh -a` to check all 150 songs and record `failures`
+- `check_spec.h` to check a small amount of bytes for a small amount of files
+- `check_spec.sh -a` to fully check all 150 songs and record `failures`
 
 ## Fuzz Testing
 The `qoa` package has a fuzz unit test to examine the `Encode()` and `Decode()` functions.
