@@ -133,6 +133,8 @@ type QOA struct {
 	Samples    uint32                 // Total number of audio samples
 	LMS        [QOAMaxChannels]qoaLMS // LMS state per channel
 	ErrorCount int                    // Count of errors during encoding/decoding
+
+	prevScaleFactor []int
 }
 
 /*
@@ -201,9 +203,11 @@ This is all done with fixed point integers. Hence the right-shifts when updating
 */
 func (lms *qoaLMS) predict() int {
 	prediction := 0
-	for i := 0; i < QOALMSLen; i++ {
-		prediction += int(lms.Weights[i]) * int(lms.History[i])
-	}
+	// Loop unrolled for QOALMSLen
+	prediction += int(lms.Weights[0]) * int(lms.History[0])
+	prediction += int(lms.Weights[1]) * int(lms.History[1])
+	prediction += int(lms.Weights[2]) * int(lms.History[2])
+	prediction += int(lms.Weights[3]) * int(lms.History[3])
 	return prediction >> 13
 }
 
@@ -212,18 +216,23 @@ func (lms *qoaLMS) update(sample int16, residual int16) {
 	// "Note that the right shift residual >> 4 in qoa_lms_update() is just there to ensure that the weights will stay within the 16 bit range (I have not proven that they do, but with all my test samples: they do)
 	// The right shift prediction >> 13 in qoa_lms_predict() above then does the rest.
 	delta := residual >> 4
-	for i := 0; i < QOALMSLen; i++ {
-		if lms.History[i] < 0 {
-			lms.Weights[i] -= delta
-		} else {
-			lms.Weights[i] += delta
+	adjustWeight := func(weight int16, history int16, delta int16) int16 {
+		if history < 0 {
+			return weight - delta
 		}
+		return weight + delta
 	}
 
-	for i := 0; i < QOALMSLen-1; i++ {
-		lms.History[i] = lms.History[i+1]
-	}
-	lms.History[QOALMSLen-1] = sample
+	lms.Weights[0] = adjustWeight(lms.Weights[0], lms.History[0], delta)
+	lms.Weights[1] = adjustWeight(lms.Weights[1], lms.History[1], delta)
+	lms.Weights[2] = adjustWeight(lms.Weights[2], lms.History[2], delta)
+	lms.Weights[3] = adjustWeight(lms.Weights[3], lms.History[3], delta)
+
+	// Loop unrolled for QOALMSLen
+	lms.History[0] = lms.History[1]
+	lms.History[1] = lms.History[2]
+	lms.History[2] = lms.History[3]
+	lms.History[3] = sample
 }
 
 /*
@@ -238,10 +247,10 @@ func div(v, scaleFactor int) int {
 
 // clamps a value between a minimum and maximum value.
 func clamp(v, min, max int) int {
-	if v < min {
+	if v <= min {
 		return min
 	}
-	if v > max {
+	if v >= max {
 		return max
 	}
 	return v
@@ -252,10 +261,10 @@ This specialized clamp function for the signed 16 bit range improves decode perf
 */
 func clampS16(v int) int16 {
 	if uint(v+32768) > 65535 {
-		if v < -32768 {
+		if v <= -32768 {
 			return -32768
 		}
-		if v > 32767 {
+		if v >= 32767 {
 			return 32767
 		}
 	}

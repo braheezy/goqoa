@@ -314,11 +314,7 @@ func FuzzEncodeDecode(f *testing.F) {
 		}
 
 		// Setup QOA struct with random but valid data
-		q := QOA{
-			Channels:   channels,
-			SampleRate: sampleRate,
-			Samples:    uint32(len(originalSamples)) / channels,
-		}
+		q := NewEncoder(sampleRate, channels, uint32(len(originalSamples))/channels)
 
 		// Encode the sample data
 		encodedBytes, err := q.Encode(originalSamples)

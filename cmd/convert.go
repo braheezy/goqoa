@@ -94,24 +94,37 @@ func convertAudio(inputFile, outputFile string) {
 		logger.Info("Input format is WAV")
 		wavReader := bytes.NewReader(inputData)
 		wavDecoder := wav.NewDecoder(wavReader)
-		wavBuffer, err := wavDecoder.FullPCMBuffer()
-		if err != nil {
-			log.Fatalf("Error decoding WAV file: %v", err)
-		}
-		// Convert the audio data to int16 (QOA format)
-		decodedData = make([]int16, len(wavBuffer.Data))
-		for i, val := range wavBuffer.Data {
-			decodedData[i] = int16(val)
+
+		// Initialize an audio.IntBuffer to hold the PCM data
+		pcmBuffer := &audio.IntBuffer{Data: make([]int, 4096), Format: wavDecoder.Format()}
+		// var decodedData []int16
+		numSamples := uint32(0)
+
+		for {
+			n, err := wavDecoder.PCMBuffer(pcmBuffer)
+			if err != nil {
+				log.Fatalf("Error decoding WAV file: %v", err)
+			}
+			if n == 0 {
+				break
+			}
+
+			// Append the decoded PCM data to decodedData slice
+			for i := 0; i < n; i++ {
+				decodedData = append(decodedData, int16(pcmBuffer.Data[i]))
+			}
 		}
 
-		numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
+		// Correctly calculate the number of samples
+		numSamples = uint32(len(decodedData) / wavDecoder.Format().NumChannels)
 
 		q = qoa.NewEncoder(
-			uint32(wavBuffer.Format.SampleRate),
-			uint32(wavBuffer.Format.NumChannels),
-			numSamples)
+			uint32(wavDecoder.Format().SampleRate),
+			uint32(wavDecoder.Format().NumChannels),
+			numSamples,
+		)
 
-		logger.Debug(inputFile, "channels", wavBuffer.Format.NumChannels, "samplerate(hz)", wavBuffer.Format.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
+		logger.Debug(inputFile, "channels", pcmBuffer.Format.NumChannels, "samplerate(hz)", pcmBuffer.Format.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
 	case ".mp3":
 		decodedData, q = decodeMp3(&inputData, inputFile)
 	case ".ogg":
@@ -198,7 +211,7 @@ func convertAudio(inputFile, outputFile string) {
 		psnr := -20.0 * math.Log10(math.Sqrt(float64(q.ErrorCount/int(q.Samples*q.Channels)))/32768.0)
 
 		bitrate := (float64(len(qoaEncodedData)*8) / float64(q.Samples/q.SampleRate)) / 1024
-		logger.Debug(outputFile, "size", formatSize(len(qoaEncodedData)), "bitrate", bitrate, "psnr", fmt.Sprintf("%0.2f", psnr))
+		logger.Debug(outputFile, "size", formatSize(len(qoaEncodedData)), "bitrate", fmt.Sprintf("%0.2f kbit/s", bitrate), "psnr", fmt.Sprintf("%0.2f", psnr))
 	case ".wav":
 		logger.Info("Output format is WAV")
 		// Convert int16 to int for WAV conversion

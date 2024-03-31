@@ -3,6 +3,7 @@ package qoa
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // encodeHeader encodes the QOA header.
@@ -21,7 +22,9 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 
 	slices := (frameLen + QOASliceLen - 1) / QOASliceLen
 	frameSize := qoaFrameSize(channels, slices)
-	prevScaleFactor := make([]int, QOAMaxChannels)
+	for i := range q.prevScaleFactor {
+		q.prevScaleFactor[i] = 0
+	}
 
 	// Write the frame header
 	binary.BigEndian.PutUint64(
@@ -67,7 +70,7 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 				/* There is a strong correlation between the scaleFactors of
 				neighboring slices. As an optimization, start testing
 				the best scaleFactor of the previous slice first. */
-				scaleFactor := (sfi + prevScaleFactor[c]) % 16
+				scaleFactor := (sfi + q.prevScaleFactor[c]) % 16
 
 				/* Reset the LMS state to the last known good one
 				before trying each scaleFactor, as each pass updates the LMS
@@ -118,9 +121,10 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 					bestLMS = lms
 					bestScaleFactor = scaleFactor
 				}
+
 			}
 
-			prevScaleFactor[c] = bestScaleFactor
+			q.prevScaleFactor[c] = bestScaleFactor
 
 			q.LMS[c] = bestLMS
 			q.ErrorCount += bestError
@@ -179,7 +183,7 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	for sampleIndex := uint32(0); sampleIndex < q.Samples; sampleIndex += frameLen {
 		frameLen = uint32(clamp(QOAFrameLen, 0, int(q.Samples-sampleIndex)))
 		if (sampleIndex+frameLen)*q.Channels > uint32(len(sampleData)) {
-			return nil, errors.New("not enough samples")
+			return nil, fmt.Errorf("not enough samples: %v", len(sampleData))
 		}
 		frameSamples := sampleData[sampleIndex*q.Channels : (sampleIndex+frameLen)*q.Channels]
 		frameSize := q.encodeFrame(frameSamples, frameLen, bytes[p:])
@@ -194,5 +198,7 @@ func NewEncoder(sampleRate, channels, samples uint32) *QOA {
 		SampleRate: sampleRate,
 		Channels:   channels,
 		Samples:    samples,
+
+		prevScaleFactor: make([]int, channels),
 	}
 }
