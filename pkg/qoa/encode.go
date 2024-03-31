@@ -54,79 +54,13 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	for sampleIndex := uint32(0); sampleIndex < frameLen; sampleIndex += QOASliceLen {
 		for c := uint32(0); c < channels; c++ {
 			sliceLen := clamp(QOASliceLen, 0, int(frameLen-sampleIndex))
-			sliceStart := sampleIndex*channels + c
-			sliceEnd := (sampleIndex+uint32(sliceLen))*channels + c
 
-			/* Brute force search for the best scaleFactor go through all
-			16 scaleFactors, encode all samples for the current slice and
-			measure the total squared error. */
-			bestError := -1
-			bestRank := -1
+			var bestError int
+			var bestLMS *qoaLMS
 			var bestSlice uint64
-			var bestLMS qoaLMS
-			var bestScaleFactor int
+			q.prevScaleFactor[c], bestError, bestSlice, bestLMS = q.findBestScaleFactor(sampleIndex, c, sliceLen, &sampleData)
 
-			for sfi := 0; sfi < 16; sfi++ {
-				/* There is a strong correlation between the scaleFactors of
-				neighboring slices. As an optimization, start testing
-				the best scaleFactor of the previous slice first. */
-				scaleFactor := (sfi + q.prevScaleFactor[c]) % 16
-
-				/* Reset the LMS state to the last known good one
-				before trying each scaleFactor, as each pass updates the LMS
-				state when encoding. */
-				lms := q.LMS[c]
-				slice := uint64(scaleFactor)
-				currentRank := uint64(0)
-				currentError := uint64(0)
-
-				for si := sliceStart; si < sliceEnd; si += channels {
-					sample := int(sampleData[si])
-					predicted := lms.predict()
-
-					residual := sample - predicted
-					scaled := div(residual, scaleFactor)
-					clamped := clamp(scaled, -8, 8)
-					quantized := qoaQuantTable[clamped+8]
-					dequantized := qoaDequantTable[scaleFactor][quantized]
-					reconstructed := clampS16(predicted + int(dequantized))
-
-					// If the weights have grown too large, we introduce a penalty here. This prevents pops/clicks
-					// in certain problem cases.
-					weightsPenalty := (int(
-						q.LMS[c].Weights[0]*q.LMS[c].Weights[0]+
-							q.LMS[c].Weights[1]*q.LMS[c].Weights[1]+
-							q.LMS[c].Weights[2]*q.LMS[c].Weights[2]+
-							q.LMS[c].Weights[3]*q.LMS[c].Weights[3]) >> 18) - 0x8ff
-					if weightsPenalty < 0 {
-						weightsPenalty = 0
-					}
-
-					errDelta := int64(sample - int(reconstructed))
-					errorSquared := uint64(errDelta * errDelta)
-					currentRank += errorSquared + uint64(weightsPenalty)*uint64(weightsPenalty)
-					currentError += errorSquared
-					if currentError > uint64(bestRank) {
-						break
-					}
-
-					lms.update(reconstructed, dequantized)
-					slice = (slice << 3) | uint64(quantized)
-				}
-
-				if currentError < uint64(bestRank) {
-					bestRank = int(currentRank)
-					bestError = int(currentError)
-					bestSlice = slice
-					bestLMS = lms
-					bestScaleFactor = scaleFactor
-				}
-
-			}
-
-			q.prevScaleFactor[c] = bestScaleFactor
-
-			q.LMS[c] = bestLMS
+			q.LMS[c] = *bestLMS
 			q.ErrorCount += bestError
 
 			/* If this slice was shorter than QOA_SLICE_LEN, we have to left-
@@ -140,6 +74,91 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	}
 
 	return p
+}
+
+func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sliceLen int, sampleData *[]int16) (int, int, uint64, *qoaLMS) {
+	/* Brute force search for the best scaleFactor go through all
+	16 scaleFactors, encode all samples for the current slice and
+	measure the total squared error. */
+	sliceStart := sampleIndex*q.Channels + currentChannel
+	sliceEnd := (sampleIndex+uint32(sliceLen))*q.Channels + currentChannel
+	bestError := -1
+	bestRank := -1
+	var bestSlice uint64
+	var bestLMS qoaLMS
+	var bestScaleFactor int
+
+	// Stop early if the error is "low enough".
+	// Found empirically. This number seems to both increase PSNR while decreasing CPU time
+	earlyExitErrorThreshold := 7000
+
+	// If the weights have grown too large, we introduce a penalty here. This prevents pops/clicks
+	// in certain problem cases.
+	weightsPenalty := (int(
+		q.LMS[currentChannel].Weights[0]*q.LMS[currentChannel].Weights[0]+
+			q.LMS[currentChannel].Weights[1]*q.LMS[currentChannel].Weights[1]+
+			q.LMS[currentChannel].Weights[2]*q.LMS[currentChannel].Weights[2]+
+			q.LMS[currentChannel].Weights[3]*q.LMS[currentChannel].Weights[3]) >> 18) - 0x8ff
+	var weightsPenaltySquared uint64
+	if weightsPenalty < 0 {
+		weightsPenalty = 0
+	} else {
+		weightsPenaltySquared = uint64(weightsPenalty * weightsPenalty)
+	}
+
+	for sfi := 0; sfi < 16; sfi++ {
+		/* There is a strong correlation between the scaleFactors of
+		neighboring slices. As an optimization, start testing
+		the best scaleFactor of the previous slice first. */
+		scaleFactor := (sfi + q.prevScaleFactor[currentChannel]) % 16
+
+		/* Reset the LMS state to the last known good one
+		before trying each scaleFactor, as each pass updates the LMS
+		state when encoding. */
+		lms := q.LMS[currentChannel]
+		slice := uint64(scaleFactor)
+		currentRank := uint64(0)
+		currentError := uint64(0)
+
+		for si := sliceStart; si < sliceEnd; si += q.Channels {
+			sample := int((*sampleData)[si])
+
+			predicted := lms.predict()
+
+			residual := sample - predicted
+			scaled := div(residual, scaleFactor)
+			clamped := clamp(scaled, -8, 8)
+			quantized := qoaQuantTable[clamped+8]
+			dequantized := qoaDequantTable[scaleFactor][quantized]
+			reconstructed := clampS16(predicted + int(dequantized))
+
+			errDelta := int64(sample - int(reconstructed))
+			errorSquared := uint64(errDelta * errDelta)
+			currentRank += errorSquared + weightsPenaltySquared
+			currentError += errorSquared
+			if currentError >= uint64(bestRank) {
+				break
+			}
+
+			lms.update(reconstructed, dequantized)
+			slice = (slice << 3) | uint64(quantized)
+		}
+
+		if currentError < uint64(bestRank) {
+			bestRank = int(currentRank)
+			bestError = int(currentError)
+			bestSlice = slice
+			bestLMS = lms
+			bestScaleFactor = scaleFactor
+		}
+
+		if bestError < earlyExitErrorThreshold {
+			break
+		}
+
+	}
+
+	return bestScaleFactor, bestError, bestSlice, &bestLMS
 }
 
 // Encode encodes the provided audio sample data in QOA format and returns the encoded bytes.
