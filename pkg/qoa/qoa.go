@@ -216,17 +216,14 @@ func (lms *qoaLMS) update(sample int16, residual int16) {
 	// "Note that the right shift residual >> 4 in qoa_lms_update() is just there to ensure that the weights will stay within the 16 bit range (I have not proven that they do, but with all my test samples: they do)
 	// The right shift prediction >> 13 in qoa_lms_predict() above then does the rest.
 	delta := residual >> 4
-	adjustWeight := func(weight int16, history int16, delta int16) int16 {
-		if history < 0 {
-			return weight - delta
-		}
-		return weight + delta
-	}
 
-	lms.Weights[0] = adjustWeight(lms.Weights[0], lms.History[0], delta)
-	lms.Weights[1] = adjustWeight(lms.Weights[1], lms.History[1], delta)
-	lms.Weights[2] = adjustWeight(lms.Weights[2], lms.History[2], delta)
-	lms.Weights[3] = adjustWeight(lms.Weights[3], lms.History[3], delta)
+	for i := 0; i < QOALMSLen; i++ {
+		if lms.History[i] < 0 {
+			lms.Weights[i] -= delta
+		} else {
+			lms.Weights[i] += delta
+		}
+	}
 
 	// Loop unrolled for QOALMSLen
 	lms.History[0] = lms.History[1]
