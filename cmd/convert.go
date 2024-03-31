@@ -95,9 +95,16 @@ func convertAudio(inputFile, outputFile string) {
 		wavReader := bytes.NewReader(inputData)
 		wavDecoder := wav.NewDecoder(wavReader)
 
+		// Attempt to estimate total number of samples
+		// This part is tricky without decoding, but WAV files have their total data size in the header
+		// For the purpose of demonstration, assuming an average bit depth and stereo channels
+		fileSize := int64(len(inputData))
+
+		// Preallocate decodedData slice based on the estimation
+		decodedData = make([]int16, fileSize)
+
 		// Initialize an audio.IntBuffer to hold the PCM data
 		pcmBuffer := &audio.IntBuffer{Data: make([]int, 4096), Format: wavDecoder.Format()}
-		// var decodedData []int16
 		numSamples := uint32(0)
 
 		for {
@@ -109,14 +116,14 @@ func convertAudio(inputFile, outputFile string) {
 				break
 			}
 
-			// Append the decoded PCM data to decodedData slice
+			// Directly copy the decoded PCM data to decodedData slice at the correct position
 			for i := 0; i < n; i++ {
-				decodedData = append(decodedData, int16(pcmBuffer.Data[i]))
+				decodedData[numSamples*uint32(pcmBuffer.Format.NumChannels)+uint32(i)] = int16(pcmBuffer.Data[i])
 			}
+			numSamples += uint32(n) / uint32(pcmBuffer.Format.NumChannels)
 		}
 
-		// Correctly calculate the number of samples
-		numSamples = uint32(len(decodedData) / wavDecoder.Format().NumChannels)
+		decodedData = decodedData[:numSamples*uint32(pcmBuffer.Format.NumChannels)]
 
 		q = qoa.NewEncoder(
 			uint32(wavDecoder.Format().SampleRate),
