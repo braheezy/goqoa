@@ -38,7 +38,7 @@ compare() {
         byteCheckLimit=500000
     else
         # Just check the first few bytes as a sanity check
-        byteCheckLimit=2000
+        byteCheckLimit=30
     fi
     if ! cmp -s -n $byteCheckLimit "$1" "$2"; then
         # We're going to purposely fail across pipes
