@@ -7,3 +7,5 @@ dist/
 /*.ogg
 /*.flac
 /fuzz/*.qoa
+/assets/*.gif
+*.prof

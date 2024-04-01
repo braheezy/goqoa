@@ -10,6 +10,7 @@ Features:
 - `qoa` library package for QOA encoding and decoding
   - Go standard library only
   - Fuzz testing coverage
+  - Some optimizations. See [Benchmarks](#benchmarks)
 - `goqoa` CLI tool
   - `convert` your WAV, FLAC, OGG, or MP3 files to QOA
   - `convert` your QOA files to WAV or MP3
@@ -18,6 +19,8 @@ Features:
   - Pre-built binaries for Linux, Windows, and Mac
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
+
+My implementation has [differences](#implementation-differences) from the reference.
 
 ## Install
 The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
@@ -95,6 +98,43 @@ The check uses `cmp` to check each byte in each produced file. For an unknown re
 The `qoa` package has a fuzz unit test to examine the `Encode()` and `Decode()` functions.
 
 `fuzz/create_fuzzy_files.py` generates valid QOA files with random data.
+
+## Benchmarks
+To get a sense of this implementation's encoding speed, I run a simple WAV -> QOA conversion. The timing includes WAV decoding time but that's okay.
+
+My host hardware:
+```
+$ neofetch
+CPU› 13th Gen Intel i5-13600KF (20) @ 5.100GHz
+GPU› AMD ATI Radeon RX 6800/6800 XT / 6900 XT
+Memory› 7416MiB / 31925MiB
+```
+
+Before I did any optimizations, this was the state of the benchmarks
+![before-benchmark](./assets/before-benchmark.png)
+
+I did some refactoring to reduce memory allocations in `qoa` and updated how I was decoding WAV data. This is what it looks like after:
+![after-benchmark](./assets/after-benchmark.png)
+
+## Implementation Differences
+While optimizing (see the above section), I found the part of the algorithm that looks for the best scale factor for the current sample slice is the most taxing on performance. Most of the errors values generated during that loop are very high in value. I, rather arbitrarily, set a threshold that, if the error is below, I deem good enough and exit the search for scale factor:
+
+```go
+earlyExitErrorThreshold := 7000
+
+// Bunch of expensive logic to find the scale factor with the lowest error...
+
+if bestError < earlyExitErrorThreshold {
+  // Good enough! Break out of this expensive function.
+  break
+}
+```
+
+This surprisingly produced a better quality output on the one file I tried this comparison on. See the PSNR:
+
+
+- Before: ![before-quality](./assets/before-quality.png)
+- After: ![before-after](./assets/after-quality.png)
 
 ---
 ## Disclaimer
