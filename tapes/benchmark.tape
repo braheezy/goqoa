@@ -1,4 +1,4 @@
-Type "hyperfine 'goqoa convert test.wav test.qoa'"
+Type "hyperfine --prepare 'sleep 1' 'goqoa convert test.wav test.qoa'"
 Enter
 
-Sleep 7s
+Sleep 15s

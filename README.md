@@ -20,8 +20,6 @@ Features:
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
-My implementation has [differences](#implementation-differences) from the reference.
-
 ## Install
 The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
 
@@ -116,22 +114,7 @@ Before I did any optimizations, this was the state of the benchmarks
 I did some refactoring to reduce memory allocations in `qoa` and updated how I was decoding WAV data. This is what it looks like after:
 ![after-benchmark](./assets/after-benchmark.png)
 
-## Implementation Differences
-While optimizing (see the above section), I found the part of the algorithm that looks for the best scale factor for the current sample slice is the most taxing on performance. Most of the errors values generated during that loop are very high in value. I, rather arbitrarily, set a threshold that, if the error is below, I deem good enough and exit the search for scale factor:
-
-```go
-earlyExitErrorThreshold := 7000
-
-// Bunch of expensive logic to find the scale factor with the lowest error...
-
-if bestError < earlyExitErrorThreshold {
-  // Good enough! Break out of this expensive function.
-  break
-}
-```
-
-This surprisingly produced a better quality output on the one file I tried this comparison on. See the PSNR:
-
+And the quality of the encoded file didn't go down:
 
 - Before: ![before-quality](./assets/before-quality.png)
 - After: ![before-after](./assets/after-quality.png)

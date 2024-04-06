@@ -88,10 +88,6 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 	var bestLMS qoaLMS
 	var bestScaleFactor int
 
-	// Stop early if the error is "low enough".
-	// Found empirically. This number seems to both increase PSNR while decreasing CPU time
-	earlyExitErrorThreshold := 7000
-
 	// If the weights have grown too large, we introduce a penalty here. This prevents pops/clicks
 	// in certain problem cases.
 	weightsPenalty := (int(
@@ -150,10 +146,6 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 			bestSlice = slice
 			bestLMS = lms
 			bestScaleFactor = scaleFactor
-		}
-
-		if bestError < earlyExitErrorThreshold {
-			break
 		}
 
 	}
