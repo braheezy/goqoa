@@ -32,7 +32,6 @@ jobs:
         uses: crazy-max/ghaction-upx@v3
         with:
           files: goqoa.exe
-          args: --brute
 
       - name: Go Test
         run: go test -v ./...
