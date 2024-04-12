@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/charmbracelet/bubbles/progress"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ebitengine/oto/v3"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +26,122 @@ var playCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(playCmd)
+}
+
+type tickMsg time.Time
+
+type playerMsg int
+
+const (
+	start playerMsg = iota
+	stop
+)
+
+type model struct {
+	filename    string
+	player      *oto.Player
+	progress    progress.Model
+	ctx         *oto.Context
+	qoaData     []int16
+	qoaMetadata qoa.QOA
+	startTime   time.Time
+	totalLength time.Duration
+}
+
+func (m model) Init() tea.Cmd {
+	return tea.Batch(func() tea.Msg {
+		return playerMsg(start) // Initial command to start playback
+	})
+}
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var teaCommands []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			if m.player.IsPlaying() {
+				m.player.Close() // Ensure player resources are freed
+			}
+			return m, tea.Quit
+		case "p": // Adding a pause/play toggle
+			if m.player.IsPlaying() {
+				teaCommands = append(teaCommands, func() tea.Msg {
+					return playerMsg(stop) // Initial command to stop playback
+				})
+			} else if m.player != nil {
+				teaCommands = append(teaCommands, func() tea.Msg {
+					return playerMsg(start) // Initial command to start playback
+				})
+			}
+		}
+	case playerMsg:
+		switch msg {
+		case start:
+			if !m.player.IsPlaying() {
+				m.player.Play()
+				m.startTime = time.Now()
+			}
+			teaCommands = append(teaCommands, tickCmd())
+		case stop:
+			if m.player.IsPlaying() {
+				m.player.Pause()
+			}
+		}
+
+	case tickMsg:
+		if m.progress.Percent() >= 1.0 {
+			return m, tea.Quit
+		}
+		if m.player.IsPlaying() {
+			elapsed := time.Since(m.startTime)
+			newPercent := elapsed.Seconds() / m.totalLength.Seconds()
+			cmd := m.progress.SetPercent(newPercent) // Ensure this sets the progress correctly
+			// if newPercent >= 1.0 {
+			// 	return m, tea.Quit
+			// }
+			teaCommands = append(teaCommands, tickCmd(), cmd) // Continuously re-trigger tickCmd
+		}
+
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		teaCommands = append(teaCommands, cmd)
+
+	}
+	return m, tea.Batch(teaCommands...)
+}
+
+func (m model) View() string {
+	pad := strings.Repeat(" ", 2)
+	statusLine := "Press 'p' to pause/play, 'q' to quit."
+	return fmt.Sprintf("\nPlaying: %s\n\n%s%s\n\n%s%s\n", m.filename, pad, m.progress.View(), pad, statusLine)
+}
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+func startTUI(filename string, ctx *oto.Context, qoaData []int16, qoaMetadata qoa.QOA) {
+	prog := progress.New(progress.WithDefaultGradient())
+	prog.ShowPercentage = false
+	prog.SetSpringOptions(36.0, 1.0)
+
+	player := ctx.NewPlayer(NewQOAAudioReader(qoaData))
+	p := tea.NewProgram(model{
+		filename:    filename,
+		qoaData:     qoaData,
+		qoaMetadata: qoaMetadata,
+		progress:    prog,
+		player:      player,
+		totalLength: time.Duration(qoaMetadata.Samples/qoaMetadata.SampleRate) * time.Second,
+	})
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
+	}
 }
 
 func isValidQOAFile(inputFile string) (bool, error) {
@@ -78,9 +197,6 @@ func playQOA(inputFiles []string) {
 		// Wait for the context to be ready
 		<-ready
 
-		// Create a new player with the custom QOAAudioReader
-		player := ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
-
 		// Play the audio
 		logger.Debug(
 			"Starting audio",
@@ -89,19 +205,9 @@ func playQOA(inputFiles []string) {
 			"SampleRate",
 			qoaMetadata.SampleRate,
 			"ChannelCount",
-			qoaMetadata.Channels,
-			"BufferedSize",
-			player.BufferedSize())
-		player.Play()
+			qoaMetadata.Channels)
 
-		for player.IsPlaying() {
-			time.Sleep(time.Millisecond)
-		}
-
-		// Close the player
-		if err := player.Close(); err != nil {
-			logger.Fatalf("Error closing player: %v", err)
-		}
+		startTUI(inputFile, ctx, qoaAudioData, *qoaMetadata)
 	}
 }
 
