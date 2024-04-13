@@ -15,10 +15,10 @@ func (q *QOA) encodeHeader(header []byte) {
 
 // encodeFrame encodes a QOA frame using the provided sample data and returns the size of the encoded frame.
 // Each frame contains an 8 byte frame header, the current 16 byte en-/decoder state per channel and 256 slices per channel. Each slice is 8 bytes wide and encodes 20 samples of audio data.
-func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uint {
+func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uint32 {
 	channels := q.Channels
 
-	p := uint(0)
+	p := uint32(0)
 
 	slices := (frameLen + QOASliceLen - 1) / QOASliceLen
 	frameSize := qoaFrameSize(channels, slices)
@@ -27,12 +27,13 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	}
 
 	// Write the frame header
+	header := uint64(q.Channels)<<56 |
+		uint64(q.SampleRate)<<32 |
+		uint64(frameLen)<<16 |
+		uint64(frameSize)
 	binary.BigEndian.PutUint64(
 		bytes,
-		uint64(q.Channels)<<56|
-			uint64(q.SampleRate)<<32|
-			uint64(frameLen)<<16|
-			uint64(frameSize),
+		header,
 	)
 	p += 8
 
@@ -122,10 +123,15 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 			predicted := lms.predict()
 
 			residual := sample - predicted
-			scaled := div(residual, scaleFactor)
+			/*
+				div() implements a rounding division, but avoids rounding to zero for small numbers. E.g. 0.1 will be rounded to 1. Note that 0 itself still returns as 0, which is handled in the qoa_quant_tab[]. qoa_div() takes an index into the .16 fixed point qoa_reciprocal_tab as an argument, so it can do the division with a cheaper integer multiplication.
+			*/
+			scaled := (residual*qoaReciprocalTable[scaleFactor] + (1 << 15)) >> 16
+			scaled += (residual >> 31) - (scaled >> 31) // Round away from 0
 			clamped := clamp(scaled, -8, 8)
 			quantized := qoaQuantTable[clamped+8]
 			dequantized := qoaDequantTable[scaleFactor][quantized]
+
 			reconstructed := clampS16(predicted + int(dequantized))
 
 			errDelta := int64(sample - int(reconstructed))
@@ -147,9 +153,7 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 			bestLMS = lms
 			bestScaleFactor = scaleFactor
 		}
-
 	}
-
 	return bestScaleFactor, bestError, bestSlice, &bestLMS
 }
 

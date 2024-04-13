@@ -109,28 +109,6 @@ func TestLMSUpdate(t *testing.T) {
 	}
 }
 
-func TestDiv(t *testing.T) {
-	testCases := []struct {
-		v           int
-		scaleFactor int
-		expected    int
-	}{
-		{100, 1, 14},
-		{-100, 1, -14},
-		{70, 2, 3},
-		{-70, 2, -3},
-		{0, 2, 0},
-		{1, 0, 1},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("Test Case %d", i), func(t *testing.T) {
-			result := div(tc.v, tc.scaleFactor)
-			assert.Equal(t, tc.expected, result, "Incorrect result")
-		})
-	}
-}
-
 func TestClamp(t *testing.T) {
 	testCases := []struct {
 		v, min, max int

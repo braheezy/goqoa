@@ -98,6 +98,12 @@ dequantized residual forms the final output sample.
 */
 package qoa
 
+import (
+	"fmt"
+	"io"
+	"os"
+)
+
 const (
 	// QOAMagic is the magic number identifying a QOA file
 	QOAMagic = 0x716f6166 // 'qoaf'
@@ -122,8 +128,8 @@ func qoaFrameSize(channels, slices uint32) uint32 {
 
 // qoaLMS represents the LMS state per channel.
 type qoaLMS struct {
-	History [QOALMSLen]int16
-	Weights [QOALMSLen]int16
+	History [4]int16
+	Weights [4]int16
 }
 
 // QOA stores the QOA audio file description.
@@ -202,13 +208,10 @@ The adjustment of the weights is done with a "Sign-Sign-LMS" that adds or subtra
 This is all done with fixed point integers. Hence the right-shifts when updating the weights and calculating the prediction.
 */
 func (lms *qoaLMS) predict() int {
-	prediction := 0
-	// Loop unrolled for QOALMSLen
-	prediction += int(lms.Weights[0]) * int(lms.History[0])
-	prediction += int(lms.Weights[1]) * int(lms.History[1])
-	prediction += int(lms.Weights[2]) * int(lms.History[2])
-	prediction += int(lms.Weights[3]) * int(lms.History[3])
-	return prediction >> 13
+	return (int(lms.Weights[0])*int(lms.History[0]) +
+		int(lms.Weights[1])*int(lms.History[1]) +
+		int(lms.Weights[2])*int(lms.History[2]) +
+		int(lms.Weights[3])*int(lms.History[3])) >> 13
 }
 
 func (lms *qoaLMS) update(sample int16, residual int16) {
@@ -225,21 +228,10 @@ func (lms *qoaLMS) update(sample int16, residual int16) {
 		}
 	}
 
-	// Loop unrolled for QOALMSLen
 	lms.History[0] = lms.History[1]
 	lms.History[1] = lms.History[2]
 	lms.History[2] = lms.History[3]
 	lms.History[3] = sample
-}
-
-/*
-div() implements a rounding division, but avoids rounding to zero for small numbers. E.g. 0.1 will be rounded to 1. Note that 0 itself still returns as 0, which is handled in the qoa_quant_tab[]. qoa_div() takes an index into the .16 fixed point qoa_reciprocal_tab as an argument, so it can do the division with a cheaper integer multiplication.
-*/
-func div(v, scaleFactor int) int {
-	reciprocal := qoaReciprocalTable[scaleFactor]
-	n := (v*reciprocal + (1 << 15)) >> 16
-	n += (v >> 31) - (n >> 31) // Round away from 0
-	return n
 }
 
 // clamps a value between a minimum and maximum value.
