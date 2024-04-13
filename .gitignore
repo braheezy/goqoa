@@ -9,3 +9,6 @@ dist/
 /fuzz/*.qoa
 /assets/*.gif
 *.prof
+/output_*
+/*.wav
+__debug_bin*
