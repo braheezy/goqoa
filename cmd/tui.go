@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ebitengine/oto/v3"
@@ -69,6 +71,10 @@ type model struct {
 	qoaPlayer *qoaPlayer
 	// ctx is the Oto context. There can only be one per process.
 	ctx *oto.Context
+	// help is the help bubble model
+	help help.Model
+	// To support help
+	keys helpKeyMap
 }
 
 // qoaPlayer handles playing QOA audio files and showing progress.
@@ -109,6 +115,9 @@ func initialModel(filenames []string) *model {
 	if err != nil {
 		panic("oto.NewContext failed: " + err.Error())
 	}
+	// Create the help bubble
+	help := help.New()
+
 	// Wait for the context to be ready
 	<-ready
 
@@ -116,6 +125,8 @@ func initialModel(filenames []string) *model {
 		filenames:    filenames,
 		currentIndex: 0,
 		ctx:          ctx,
+		help:         help,
+		keys:         helpsKeys,
 	}
 	m.qoaPlayer = m.newQOAPlayer(filenames[0])
 	return m
@@ -180,17 +191,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.qoaPlayer.progress.Width = maxWidth
 		}
 		return m, nil
-
 	// Handle key presses
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		switch {
+		case key.Matches(msg, m.keys.quit):
 			if m.qoaPlayer.player.IsPlaying() {
 				m.qoaPlayer.player.Close()
 			}
 			return m, tea.Quit
-		case "p":
-			// pause/play toggle
+		case key.Matches(msg, m.keys.togglePlay):
 			var cmd tea.Cmd
 			if m.qoaPlayer.player.IsPlaying() {
 				cmd = sendControlsMsg(stop)
@@ -247,7 +256,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Progress is at 100%, so song must be over.
 			return m, tea.Batch(sendChangeSongMsg(next))
 		}
-
+	// Update the progress bubble
 	case progress.FrameMsg:
 		progressModel, cmd := m.qoaPlayer.progress.Update(msg)
 		m.qoaPlayer.progress = progressModel.(progress.Model)
@@ -278,7 +287,21 @@ func nextSong(m model) model {
 // ==========================================
 // View renders the current state of the application.
 func (m model) View() string {
-	pad := strings.Repeat(" ", 2)
-	statusLine := "Press 'p' to pause/play, 'q' to quit."
-	return fmt.Sprintf("\nPlaying: %s (index: %v)\n\n%s%s\n\n%s%s\n", m.qoaPlayer.filename, m.currentIndex, pad, m.qoaPlayer.progress.View(), pad, statusLine)
+	var view strings.Builder
+	// pad := strings.Repeat(" ", 2)
+	// Status line
+	statusLine := fmt.Sprintf("Playing: %s (index: %v)", m.qoaPlayer.filename, m.currentIndex)
+	view.WriteString(statusStyle.Render(statusLine))
+
+	// Song progress
+	view.WriteRune('\n')
+	view.WriteString(m.qoaPlayer.progress.View())
+	view.WriteString("\n\n")
+
+	view.WriteString(m.help.View(m.keys))
+	view.WriteRune('\n')
+
+	// statusLine := "Press 'p' to pause/play, 'q' to quit."
+	return view.String()
+
 }
