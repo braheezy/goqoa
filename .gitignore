@@ -12,3 +12,6 @@ dist/
 /output_*
 /*.wav
 __debug_bin*
+/*.qoa
+TODO
+/raw_output.txt

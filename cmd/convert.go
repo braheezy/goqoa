@@ -131,7 +131,18 @@ func convertAudio(inputFile, outputFile string) {
 			numSamples,
 		)
 
-		logger.Debug(inputFile, "channels", pcmBuffer.Format.NumChannels, "samplerate(hz)", pcmBuffer.Format.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
+		logger.Debug(
+			inputFile,
+			"channels", pcmBuffer.Format.NumChannels,
+			"samplerate(hz)", pcmBuffer.Format.SampleRate,
+			"samples/channel", numSamples,
+			"bit depth", wavDecoder.SampleBitDepth(),
+			"size", formatSize(len(inputData)),
+			"duration", fmt.Sprintf("%v sec", numSamples/uint32(pcmBuffer.Format.SampleRate)),
+		)
+		if wavDecoder.SampleBitDepth() > 16 {
+			logger.Warn("Bit depth is greater than 16, this may result in loss of precision and sound quality!")
+		}
 	case ".mp3":
 		decodedData, q = decodeMp3(&inputData, inputFile)
 	case ".ogg":
@@ -192,7 +203,17 @@ func convertAudio(inputFile, outputFile string) {
 			uint32(numSamples),
 		)
 
-		logger.Debug(inputFile, "channels", flacMetadata.NChannels, "samplerate(hz)", flacMetadata.SampleRate, "samples/channel", numSamples, "size", formatSize(len(inputData)))
+		logger.Debug(
+			inputFile,
+			"channels", flacMetadata.NChannels,
+			"samplerate(hz)", flacMetadata.SampleRate,
+			"samples/channel", numSamples,
+			"bit depth", flacMetadata.BitsPerSample,
+			"size", formatSize(len(inputData)),
+		)
+		if flacMetadata.BitsPerSample > 16 {
+			logger.Warn("Bit depth is greater than 16, this may result in loss of precision and sound quality!")
+		}
 	}
 
 	outExt := filepath.Ext(outputFile)
