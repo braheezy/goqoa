@@ -13,16 +13,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
+
       - name: Install dependencies
         run: go get ./...
+
       - name: Build
         run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -v .
+
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          files: goqoa.exe
+
       - name: Go Test
         run: go test -v ./...
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -35,16 +45,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
+
       - name: Install dependencies
         run: go get ./...
+
       - name: Build
         run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-mac -v .
+
       - name: Go Test
         run: go test -v ./...
+
       - uses: actions/upload-artifact@v4
         with:
           name: mac
@@ -57,32 +72,40 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
+
       - name: Install dependencies
         run: |
           go get ./...
           sudo apt-get update
           sudo apt-get install -y libasound2-dev
+
       - name: Build
         run: |
           go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
           upx --best goqoa-linux
+
       - name: Go Test
         run: go test -v ./...
+
       - name: Cache large spec pack
         uses: actions/cache@v3
         with:
           key: qoa_test_samples_2023_02_18.zip
           path: qoa_test_samples_2023_02_18.zip
+
       - name: Download large spec pack
         run: wget --timestamping https://qoaformat.org/samples/qoa_test_samples_2023_02_18.zip
+
       - name: Spec Test
         run: |
           sudo cp goqoa-linux /usr/bin/goqoa
           bash check_spec.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -99,7 +122,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
