@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eou pipefail
+set -ou pipefail
 
 usage() {
     echo "Usage: $0 <file|directory|archive>"
@@ -13,15 +13,29 @@ process_file() {
     echo "Processing file: $file"
     song_filename=$(basename "$file")
     song_name="${song_filename%.*}"
-    qoaconv "$file" "/data/output_qoa/$song_name.qoa" &>> /data/raw_output.txt
-    goqoa convert -v "$file" "/data/output_goqoa/$song_name.go.qoa" &>> /data/raw_output.txt
+
+    result=$(qoaconv "$file" "/data/output_qoa/$song_name.qoa")
+    if [ $? -ne 0 ]; then
+        echo "qoaconv,$file,error: see raw_output.txt" >> /data/raw_output.txt
+    else
+        echo "$result" >> /data/raw_output.txt
+    fi
+
+    result=$(goqoa convert -v "$file" "/data/output_qoa/$song_name.qoa")
+    if [ $? -ne 0 ]; then
+        echo "goqoa,$file,error: see raw_output.txt" >> /data/raw_output.txt
+    else
+        echo "$result" >> /data/raw_output.txt
+    fi
 }
 
 # Function to handle directories
 process_directory() {
     local dir=$1
     echo "Processing directory: $dir"
-    # Place your directory processing logic here
+    for file in "$dir"/*.wav; do
+        process_file "$file"
+    done
 }
 
 # Function to handle archive files
@@ -87,7 +101,7 @@ fi
 # Function to extract and format data as CSV
 extract_and_format_csv() {
     local raw_output="/data/raw_output.txt"
-    local csv="Encoder,File,PSNR,Channels,Sample Rate,Duration,Size,Bitrate\n"
+    local csv="encoder,file,psnr,channels,sample rate,duration,size,bitrate\n"
 
     local file=""
     local channels=""
@@ -96,9 +110,6 @@ extract_and_format_csv() {
     local size=""
     local bitrate=""
     local psnr=""
-
-    # local in_qoa=0
-    # local in_goqoa=0
 
     # Assuming that each entry follows the format shown in your example
     while IFS= read -r line; do
@@ -113,10 +124,11 @@ extract_and_format_csv() {
             size=$(echo "$line" | awk -F'size: ' '{print $2}' | awk '{print $1, $2}')
             bitrate=$(echo "$line" | awk -F'size: ' '{print $2}' | awk '{print $6, $7}' | sed 's/,*$//g')
             psnr=$(echo "$line" | awk -F'psnr: ' '{print $2}' | awk '{print $1, $2}')
-            csv+="qoa,$file,$psnr,$channels,$sample_rate,$duration,$size,$bitrate\n"
+            csv+="qoaconv,$file,$psnr,$channels,$sample_rate,$duration,$size,$bitrate\n"
         fi
         if [[ "$line"  =~ channels= ]]; then
             file=$(echo "$line" | awk '{print $2}')
+            file=$(basename "$file")
             channels=$(echo "$line" | awk -F'channels=' '{print $2}' | awk '{print $1}')
             sample_rate=$(echo "$line" | awk -F'samplerate(hz)=' '{print $1}' | awk '{print $4}'  | cut -d'=' -f2)
             sample_rate="${sample_rate} hz"
@@ -129,6 +141,9 @@ extract_and_format_csv() {
             psnr="${psnr} db"
             csv+="goqoa,$file,$psnr,$channels,$sample_rate,$duration,$size,$bitrate\n"
         fi
+        if [[ "$line"  =~ error ]]; then
+            csv+="${line},---,---,---,---,---\n"
+        fi
     done < "$raw_output"
 
     echo "${csv}"
@@ -136,6 +151,11 @@ extract_and_format_csv() {
 
 # Use gum to print the CSV as a table
 csv_data=$(extract_and_format_csv)
+if [ -z "${csv_data+x}" ]; then
+    echo "No data found..."
+    echo "Check raw_output.txt"
+    exit 1
+fi
 echo -e "$csv_data" | gum table --print \
     --border.foreground "#DDB6F2" \
     --cell.foreground="#FAE3B0" \
