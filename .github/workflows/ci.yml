@@ -1,7 +1,8 @@
 name: ci
-"on":
-  push: null
-  workflow_dispatch: null
+on:
+  push:
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
