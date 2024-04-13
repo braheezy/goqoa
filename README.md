@@ -78,10 +78,10 @@ Then you can `make build` to get a binary.
 
 `make test` will run Go unit tests.
 
-## Reference Testing
+### Reference Testing
 This is a rewrite of the QOA implementation, not a transpile of or a CGO wrapper to `qoa.h`. It's a simple enough encoding that the code can be compared side-by-side to ensure the same algorithm has been implemented.
 
-To further examine fidelity, the `check_spec.sh` script is used. It does the following:
+To further examine fidelity, the `check_spec.sh` script can be used. It does the following:
 - If required, fetch the [sample pack from the QOA website](https://qoaformat.org/samples/)
 - Grab random WAV files from the pack
 - `goqoa convert` the file to QOA format and compare against the QOA file created by the reference author
@@ -92,7 +92,11 @@ The check uses `cmp` to check each byte in each produced file. For an unknown re
 - `check_spec.h` to check a small amount of bytes for a small amount of files
 - `check_spec.sh -a` to fully check all 150 songs and record `failures`
 
-## Fuzz Testing
+The `Dockerfile` can also be used to compare against the reference. It builds and installs both `goqoa` and `qoaconv` and provides an entrypoint script to convert WAV file(s) with both tools, then summarize the results.
+
+    docker build . -t qoacompare:latest && docker run --rm -it -v `pwd`:/data  qoacompare /data/test_ultra_new.wav
+
+### Fuzz Testing
 The `qoa` package has a fuzz unit test to examine the `Encode()` and `Decode()` functions.
 
 `fuzz/create_fuzzy_files.py` generates valid QOA files with random data.
@@ -120,6 +124,7 @@ And the quality of the encoded file didn't go down:
 - After: ![before-after](./assets/after-quality.png)
 
 ---
+
 ## Disclaimer
 I have never written software that deals with audio files before. I saw a post about QOA on HackerNews and found the name amusing. There were many ports to other languages, but Go was not listed. So here we are!
 

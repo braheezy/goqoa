@@ -137,7 +137,9 @@ func convertAudio(inputFile, outputFile string) {
 			"samplerate(hz)", pcmBuffer.Format.SampleRate,
 			"samples/channel", numSamples,
 			"bit depth", wavDecoder.SampleBitDepth(),
-			"size", formatSize(len(inputData)))
+			"size", formatSize(len(inputData)),
+			"duration", fmt.Sprintf("%v sec", numSamples/uint32(pcmBuffer.Format.SampleRate)),
+		)
 		if wavDecoder.SampleBitDepth() > 16 {
 			logger.Warn("Bit depth is greater than 16, this may result in loss of precision and sound quality!")
 		}
