@@ -15,10 +15,10 @@ func (q *QOA) encodeHeader(header []byte) {
 
 // encodeFrame encodes a QOA frame using the provided sample data and returns the size of the encoded frame.
 // Each frame contains an 8 byte frame header, the current 16 byte en-/decoder state per channel and 256 slices per channel. Each slice is 8 bytes wide and encodes 20 samples of audio data.
-func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uint {
+func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uint32 {
 	channels := q.Channels
 
-	p := uint(0)
+	p := uint32(0)
 
 	slices := (frameLen + QOASliceLen - 1) / QOASliceLen
 	frameSize := qoaFrameSize(channels, slices)
@@ -27,12 +27,13 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 	}
 
 	// Write the frame header
+	header := uint64(q.Channels)<<56 |
+		uint64(q.SampleRate)<<32 |
+		uint64(frameLen)<<16 |
+		uint64(frameSize)
 	binary.BigEndian.PutUint64(
 		bytes,
-		uint64(q.Channels)<<56|
-			uint64(q.SampleRate)<<32|
-			uint64(frameLen)<<16|
-			uint64(frameSize),
+		header,
 	)
 	p += 8
 
@@ -41,8 +42,8 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 		history := uint64(0)
 		weights := uint64(0)
 		for i := 0; i < QOALMSLen; i++ {
-			history = history<<16 | uint64(q.LMS[c].History[i])&0xffff
-			weights = weights<<16 | uint64(q.LMS[c].Weights[i])&0xffff
+			history = history<<16 | uint64(q.lms[c].History[i])&0xffff
+			weights = weights<<16 | uint64(q.lms[c].Weights[i])&0xffff
 		}
 		binary.BigEndian.PutUint64(bytes[p:], history)
 		p += 8
@@ -60,7 +61,7 @@ func (q *QOA) encodeFrame(sampleData []int16, frameLen uint32, bytes []byte) uin
 			var bestSlice uint64
 			q.prevScaleFactor[c], bestError, bestSlice, bestLMS = q.findBestScaleFactor(sampleIndex, c, sliceLen, &sampleData)
 
-			q.LMS[c] = *bestLMS
+			q.lms[c] = *bestLMS
 			q.ErrorCount += bestError
 
 			/* If this slice was shorter than QOA_SLICE_LEN, we have to left-
@@ -91,10 +92,10 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 	// If the weights have grown too large, we introduce a penalty here. This prevents pops/clicks
 	// in certain problem cases.
 	weightsPenalty := (int(
-		q.LMS[currentChannel].Weights[0]*q.LMS[currentChannel].Weights[0]+
-			q.LMS[currentChannel].Weights[1]*q.LMS[currentChannel].Weights[1]+
-			q.LMS[currentChannel].Weights[2]*q.LMS[currentChannel].Weights[2]+
-			q.LMS[currentChannel].Weights[3]*q.LMS[currentChannel].Weights[3]) >> 18) - 0x8ff
+		q.lms[currentChannel].Weights[0]*q.lms[currentChannel].Weights[0]+
+			q.lms[currentChannel].Weights[1]*q.lms[currentChannel].Weights[1]+
+			q.lms[currentChannel].Weights[2]*q.lms[currentChannel].Weights[2]+
+			q.lms[currentChannel].Weights[3]*q.lms[currentChannel].Weights[3]) >> 18) - 0x8ff
 	var weightsPenaltySquared uint64
 	if weightsPenalty < 0 {
 		weightsPenalty = 0
@@ -111,7 +112,7 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 		/* Reset the LMS state to the last known good one
 		before trying each scaleFactor, as each pass updates the LMS
 		state when encoding. */
-		lms := q.LMS[currentChannel]
+		lms := q.lms[currentChannel]
 		slice := uint64(scaleFactor)
 		currentRank := uint64(0)
 		currentError := uint64(0)
@@ -122,10 +123,15 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 			predicted := lms.predict()
 
 			residual := sample - predicted
-			scaled := div(residual, scaleFactor)
+			/*
+				div() implements a rounding division, but avoids rounding to zero for small numbers. E.g. 0.1 will be rounded to 1. Note that 0 itself still returns as 0, which is handled in the qoa_quant_tab[]. qoa_div() takes an index into the .16 fixed point qoa_reciprocal_tab as an argument, so it can do the division with a cheaper integer multiplication.
+			*/
+			scaled := (residual*qoaReciprocalTable[scaleFactor] + (1 << 15)) >> 16
+			scaled += (residual >> 31) - (scaled >> 31) // Round away from 0
 			clamped := clamp(scaled, -8, 8)
 			quantized := qoaQuantTable[clamped+8]
 			dequantized := qoaDequantTable[scaleFactor][quantized]
+
 			reconstructed := clampS16(predicted + int(dequantized))
 
 			errDelta := int64(sample - int(reconstructed))
@@ -147,9 +153,7 @@ func (q *QOA) findBestScaleFactor(sampleIndex uint32, currentChannel uint32, sli
 			bestLMS = lms
 			bestScaleFactor = scaleFactor
 		}
-
 	}
-
 	return bestScaleFactor, bestError, bestSlice, &bestLMS
 }
 
@@ -173,15 +177,15 @@ func (q *QOA) Encode(sampleData []int16) ([]byte, error) {
 	for c := uint32(0); c < q.Channels; c++ {
 		/* Set the initial LMS weights to {0, 0, -1, 2}. This helps with the
 		prediction of the first few ms of a file. */
-		q.LMS[c].Weights[0] = 0
-		q.LMS[c].Weights[1] = 0
-		q.LMS[c].Weights[2] = -(1 << 13)
-		q.LMS[c].Weights[3] = 1 << 14
+		q.lms[c].Weights[0] = 0
+		q.lms[c].Weights[1] = 0
+		q.lms[c].Weights[2] = -(1 << 13)
+		q.lms[c].Weights[3] = 1 << 14
 
 		/* Explicitly set the history samples to 0, as we might have some
 		garbage in there. */
 		for i := 0; i < QOALMSLen; i++ {
-			q.LMS[c].History[i] = 0
+			q.lms[c].History[i] = 0
 		}
 	}
 

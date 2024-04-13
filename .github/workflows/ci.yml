@@ -1,5 +1,4 @@
 name: ci
-
 on:
   push:
   workflow_dispatch:
@@ -7,7 +6,6 @@ on:
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -40,7 +38,6 @@ jobs:
         with:
           name: windows
           path: goqoa.exe
-
   build-mac:
     runs-on: macos-latest
     env:
@@ -68,7 +65,6 @@ jobs:
         with:
           name: mac
           path: goqoa-mac
-
   build-linux:
     runs-on: ubuntu-latest
     env:
@@ -115,7 +111,6 @@ jobs:
         with:
           name: linux
           path: goqoa-linux
-
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs:
@@ -124,7 +119,6 @@ jobs:
       - build-linux
     permissions:
       contents: write
-
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

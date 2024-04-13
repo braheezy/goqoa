@@ -18,7 +18,7 @@ func TestEncodeHeader(t *testing.T) {
 		Channels:   2,
 		SampleRate: 44100,
 		Samples:    88200,
-		LMS:        [QOAMaxChannels]qoaLMS{},
+		lms:        [QOAMaxChannels]qoaLMS{},
 	}
 
 	expectedHeader := []byte{
@@ -105,28 +105,6 @@ func TestLMSUpdate(t *testing.T) {
 
 			assert.Equal(t, tc.expectedWeights, lms.Weights, "Incorrect updated weights")
 			assert.Equal(t, tc.expectedHistory, lms.History, "Incorrect updated history")
-		})
-	}
-}
-
-func TestDiv(t *testing.T) {
-	testCases := []struct {
-		v           int
-		scaleFactor int
-		expected    int
-	}{
-		{100, 1, 14},
-		{-100, 1, -14},
-		{70, 2, 3},
-		{-70, 2, -3},
-		{0, 2, 0},
-		{1, 0, 1},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("Test Case %d", i), func(t *testing.T) {
-			result := div(tc.v, tc.scaleFactor)
-			assert.Equal(t, tc.expected, result, "Incorrect result")
 		})
 	}
 }
@@ -245,7 +223,7 @@ func TestBasicDecode(t *testing.T) {
 	assert.NotEmpty(t, q.Samples, "Expected samples")
 	assert.NotEmpty(t, q.Channels, "Expected channels")
 	assert.NotEmpty(t, q.SampleRate, "Expected sample rate")
-	assert.NotEmpty(t, q.LMS[0], "Expected LMS data")
+	assert.NotEmpty(t, q.lms[0], "Expected LMS data")
 }
 
 func TestBasicEncode(t *testing.T) {

@@ -72,9 +72,9 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 		p += 16
 
 		for i := 0; i < QOALMSLen; i++ {
-			q.LMS[c].History[i] = int16(history >> 48)
+			q.lms[c].History[i] = int16(history >> 48)
 			history <<= 16
-			q.LMS[c].Weights[i] = int16(weights >> 48)
+			q.lms[c].Weights[i] = int16(weights >> 48)
 			weights <<= 16
 		}
 	}
@@ -90,7 +90,7 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 			sliceEnd := uint32(clamp(int(sampleIndex)+QOASliceLen, 0, int(samples)))*channels + c
 
 			for si := sliceStart; si < sliceEnd; si += channels {
-				predicted := q.LMS[c].predict()
+				predicted := q.lms[c].predict()
 				quantized := int((slice >> 57) & 0x7)
 				dequantized := qoaDequantTable[scaleFactor][quantized]
 				reconstructed := clampS16(predicted + int(dequantized))
@@ -98,7 +98,7 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 				sampleData[si] = reconstructed
 				slice <<= 3
 
-				q.LMS[c].update(reconstructed, dequantized)
+				q.lms[c].update(reconstructed, dequantized)
 			}
 		}
 	}

@@ -9,9 +9,9 @@ dist/
 /fuzz/*.qoa
 /assets/*.gif
 *.prof
-/output*
-__debug_bin*
+/output_*
 /*.wav
+__debug_bin*
 /*.qoa
 TODO
 /raw_output.txt
