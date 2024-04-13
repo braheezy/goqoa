@@ -128,11 +128,11 @@ type qoaLMS struct {
 
 // QOA stores the QOA audio file description.
 type QOA struct {
-	Channels   uint32                 // Number of audio channels
-	SampleRate uint32                 // Sample rate of the audio
-	Samples    uint32                 // Total number of audio samples
-	LMS        [QOAMaxChannels]qoaLMS // LMS state per channel
-	ErrorCount int                    // Count of errors during encoding/decoding
+	Channels   uint32    // Number of audio channels
+	SampleRate uint32    // Sample rate of the audio
+	Samples    uint32    // Total number of audio samples
+	lms        [8]qoaLMS // LMS state per channel
+	ErrorCount int       // Count of errors during encoding/decoding
 
 	prevScaleFactor []int
 }

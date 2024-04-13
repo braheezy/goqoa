@@ -18,7 +18,7 @@ func TestEncodeHeader(t *testing.T) {
 		Channels:   2,
 		SampleRate: 44100,
 		Samples:    88200,
-		LMS:        [QOAMaxChannels]qoaLMS{},
+		lms:        [QOAMaxChannels]qoaLMS{},
 	}
 
 	expectedHeader := []byte{
@@ -245,7 +245,7 @@ func TestBasicDecode(t *testing.T) {
 	assert.NotEmpty(t, q.Samples, "Expected samples")
 	assert.NotEmpty(t, q.Channels, "Expected channels")
 	assert.NotEmpty(t, q.SampleRate, "Expected sample rate")
-	assert.NotEmpty(t, q.LMS[0], "Expected LMS data")
+	assert.NotEmpty(t, q.lms[0], "Expected LMS data")
 }
 
 func TestBasicEncode(t *testing.T) {
