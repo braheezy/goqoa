@@ -12,75 +12,96 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
+// ==========================================
+// =============== Messages =================
+// ==========================================
+// tickMsg is sent periodically to update the progress bar.
 type tickMsg time.Time
 
-type playerMsg int
-
-func sendPlayerMsg(msg playerMsg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
+// tickCmd is a helper function to create a tickMsg.
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
-type changeSong int
+// controlsMsg is sent to control various things about the music player.
+type controlsMsg int
 
 const (
-	next changeSong = iota
-	prev
-)
-
-func sendChangeSongMsg(msg changeSong) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
-}
-
-const (
-	start playerMsg = iota
+	start controlsMsg = iota
 	stop
 )
 
+// sendControlsMsg is a helper function to create a controlsMsg.
+func sendControlsMsg(msg controlsMsg) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
+}
+
+// changeSongMsg is sent to change the song.
+type changeSongMsg int
+
+const (
+	next changeSongMsg = iota
+	prev
+)
+
+// sendChangeSongMsg is a helper function to create a changeSongMsg.
+func sendChangeSongMsg(msg changeSongMsg) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
+}
+
+// ==========================================
+// ================ Models ==================
+// ==========================================
+
+// model holds the main state of the application.
 type model struct {
-	filenames    []string
+	// filenames is a list of filenames to play.
+	filenames []string
+	// currentIndex is the index of the current song playing
 	currentIndex int
-	qoaPlayer    *qoaPlayer
-	ctx          *oto.Context
+	// qoaPlayer is the QOA player
+	qoaPlayer *qoaPlayer
+	// ctx is the Oto context. There can only be one per process.
+	ctx *oto.Context
 }
 
+// qoaPlayer handles playing QOA audio files and showing progress.
 type qoaPlayer struct {
-	qoaData         []int16
-	player          *oto.Player
-	qoaMetadata     qoa.QOA
-	startTime       time.Time
-	lastPauseTime   time.Time     // Tracks when the last pause started
-	totalPausedTime time.Duration // Accumulates total time spent paused
-	totalLength     time.Duration
-	filename        string
-	progress        progress.Model
-	paused          bool
+	// qoaData is the raw QOA encoded audio bytes.
+	qoaData []int16
+	// player is the Oto player, which does the actually playing of sound.
+	player *oto.Player
+	// qoaMetadata is the QOA encoder struct.
+	qoaMetadata qoa.QOA
+	// startTime is the time when the song started playing.
+	startTime time.Time
+	// lastPauseTime is the time when the last pause started.
+	lastPauseTime time.Time
+	// totalPausedTime is the total time spent paused.
+	totalPausedTime time.Duration
+	// totalLength is the total length of the song.
+	totalLength time.Duration
+	// filename is the filename of the song being played.
+	filename string
+	// progress is the progress bubble model.
+	progress progress.Model
+	// paused is whether the song is paused.
+	paused bool
 }
 
-func newModel(filenames []string) *model {
-	_, err := qoa.IsValidQOAFile(filenames[0])
-	if err != nil {
-		logger.Fatalf("Error validating QOA file: %v", err)
-	}
-
-	qoaBytes, err := os.ReadFile(filenames[0])
-	if err != nil {
-		logger.Fatalf("Error reading QOA file: %v", err)
-	}
-
-	// Decode the QOA audio data
-	qoaMetadata, _, err := qoa.Decode(qoaBytes)
-	if err != nil {
-		logger.Fatalf("Error decoding QOA data: %v", err)
-	}
-
+// initialModel creates a new model with the given filenames.
+func initialModel(filenames []string) *model {
 	// Prepare an Oto context (this will use the default audio device)
 	ctx, ready, err := oto.NewContext(
 		&oto.NewContextOptions{
-			SampleRate: int(qoaMetadata.SampleRate),
+			// Typically 44100 or 48000, we could get it from a QOA file but we'd have to decode one.
+			SampleRate: 44100,
 			// only 1 or 2 are supported by oto
 			ChannelCount: 2,
 			Format:       oto.FormatSignedInt16LE,
@@ -100,6 +121,7 @@ func newModel(filenames []string) *model {
 	return m
 }
 
+// newQOAPlayer creates a new QOA player for the given filename.
 func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 	_, err := qoa.IsValidQOAFile(filename)
 	if err != nil {
@@ -111,14 +133,16 @@ func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 		logger.Fatalf("Error reading QOA file: %v", err)
 	}
 
-	// Decode the QOA audio data
 	qoaMetadata, qoaAudioData, err := qoa.Decode(qoaBytes)
 	if err != nil {
 		logger.Fatalf("Error decoding QOA data: %v", err)
 	}
 
-	prog := progress.New(progress.WithDefaultGradient())
+	totalLength := time.Duration(qoaMetadata.Samples/qoaMetadata.SampleRate) * time.Second
+
+	prog := progress.New(progress.WithGradient(qoaRed, qoaPink))
 	prog.ShowPercentage = false
+	prog.Width = maxWidth
 
 	player := m.ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
 	return &qoaPlayer{
@@ -127,130 +151,113 @@ func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 		qoaMetadata: *qoaMetadata,
 		progress:    prog,
 		player:      player,
-		totalLength: time.Duration(qoaMetadata.Samples/qoaMetadata.SampleRate) * time.Second,
+		totalLength: totalLength,
 	}
 }
 
+// ==========================================
+// ================= Main ===================
+// ==========================================
+// startTUI is the main entry point for the TUI.
 func startTUI(inputFiles []string) {
-	// If inputFiles[0] is a directory, get the immediate contents. Only files ending in .qoa.
-	fileInfo, err := os.Stat(inputFiles[0])
-	if err != nil {
-		logger.Fatalf("Error reading file: %v", err)
-	}
-	if fileInfo.IsDir() {
-		files, err := os.ReadDir(inputFiles[0])
-		if err != nil {
-			logger.Fatalf("Error reading directory: %v", err)
-		}
-		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(file.Name(), ".qoa") {
-				inputFiles = append(inputFiles, file.Name())
-			}
-		}
-		if len(inputFiles) == 0 {
-			logger.Fatal("No .qoa files found in directory")
-		}
-		// Remove the first element, the directory name
-		inputFiles = inputFiles[1:]
-	}
-	p := tea.NewProgram(newModel(inputFiles))
+	p := tea.NewProgram(initialModel(inputFiles))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
 }
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(sendPlayerMsg(start))
-}
-
-// Start playback and initialize timing
-func (qp *qoaPlayer) StartPlayback() {
-	qp.player.Play()
-	if qp.startTime.IsZero() {
-		qp.startTime = time.Now()
-	} else {
-		qp.totalPausedTime += time.Since(qp.lastPauseTime)
-		qp.lastPauseTime = time.Time{} // Reset last pause time
-	}
-}
-
-// Pause playback and track pause timing
-func (qp *qoaPlayer) PausePlayback() {
-	qp.player.Pause()
-	qp.lastPauseTime = time.Now()
+	return tea.Batch(sendControlsMsg(start))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var teaCommands []tea.Cmd
-
 	switch msg := msg.(type) {
+	// Handle terminal resizing
+	case tea.WindowSizeMsg:
+		m.qoaPlayer.progress.Width = msg.Width - padding*2 - 4
+		if m.qoaPlayer.progress.Width > maxWidth {
+			m.qoaPlayer.progress.Width = maxWidth
+		}
+		return m, nil
+
+	// Handle key presses
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
+		case "q", "ctrl+c", "esc":
 			if m.qoaPlayer.player.IsPlaying() {
-				m.qoaPlayer.player.Close() // Ensure player resources are freed
+				m.qoaPlayer.player.Close()
 			}
 			return m, tea.Quit
-		case "p": // Adding a pause/play toggle
+		case "p":
+			// pause/play toggle
+			var cmd tea.Cmd
 			if m.qoaPlayer.player.IsPlaying() {
-				teaCommands = append(teaCommands, sendPlayerMsg(stop))
+				cmd = sendControlsMsg(stop)
 			} else if m.qoaPlayer.player != nil {
-				teaCommands = append(teaCommands, sendPlayerMsg(start))
+				cmd = sendControlsMsg(start)
 			}
+			return m, cmd
 		}
-	case playerMsg:
+	// Handle requests to change controls (play, pause, etc.)
+	case controlsMsg:
 		switch msg {
 		case start:
 			if !m.qoaPlayer.player.IsPlaying() {
 				m.qoaPlayer.player.Play()
 				m.qoaPlayer.paused = false
+
+				// Account for time spent paused, if needed
 				if m.qoaPlayer.startTime.IsZero() {
 					m.qoaPlayer.startTime = time.Now()
 				} else {
 					m.qoaPlayer.totalPausedTime += time.Since(m.qoaPlayer.lastPauseTime)
 					m.qoaPlayer.lastPauseTime = time.Time{} // Reset last pause time
 				}
-				teaCommands = append(teaCommands, tickCmd())
+				// Now that we are definitely playing, start the progress bubble
+				return m, tickCmd()
 			}
 		case stop:
 			m.qoaPlayer.player.Pause()
 			m.qoaPlayer.lastPauseTime = time.Now()
 			m.qoaPlayer.paused = true
-
 		}
-	case changeSong:
+	// Handle requests to change song (prev, next, etc.)
+	case changeSongMsg:
 		switch msg {
 		case next:
 			m = nextSong(m)
-			teaCommands = append(teaCommands, sendPlayerMsg(start))
+			return m, sendControlsMsg(start)
 		}
+	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
+		// Check if the song is over, ignoring progress bubble status in case the song ended before it go to 100%.
 		if !m.qoaPlayer.player.IsPlaying() && !m.qoaPlayer.paused {
-			teaCommands = append(teaCommands, sendChangeSongMsg(next))
-			return m, tea.Batch(teaCommands...)
+			// Just go to the next song.
+			return m, sendChangeSongMsg(next)
 		}
+		// If we're still playing, update accordingly
 		if m.qoaPlayer.player.IsPlaying() {
 			elapsed := time.Since(m.qoaPlayer.startTime) - m.qoaPlayer.totalPausedTime
 			newPercent := elapsed.Seconds() / m.qoaPlayer.totalLength.Seconds()
 			cmd := m.qoaPlayer.progress.SetPercent(newPercent)
-			teaCommands = append(teaCommands, cmd, tickCmd())
-			return m, tea.Batch(teaCommands...)
-
+			// Set new progress bar percent and keep ticking
+			return m, tea.Batch(cmd, tickCmd())
 		} else if m.qoaPlayer.progress.Percent() >= 1.0 {
-
-			teaCommands = append(teaCommands, sendChangeSongMsg(next))
-			return m, tea.Batch(teaCommands...)
+			// Progress is at 100%, so song must be over.
+			return m, tea.Batch(sendChangeSongMsg(next))
 		}
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.qoaPlayer.progress.Update(msg)
 		m.qoaPlayer.progress = progressModel.(progress.Model)
-		teaCommands = append(teaCommands, cmd)
+		return m, cmd
 
 	}
-	return m, tea.Batch(teaCommands...)
+	return m, nil
 }
 
+// nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.
 func nextSong(m model) model {
 	m.qoaPlayer.player.Close()
 
@@ -262,18 +269,16 @@ func nextSong(m model) model {
 	m.qoaPlayer = m.newQOAPlayer(nextFile)
 	m.currentIndex = nextIndex
 
-	// Return the new QOA player and a command to update the progress bar
+	// Return the new QOA player
 	return m
 }
 
+// ==========================================
+// ================= View ===================
+// ==========================================
+// View renders the current state of the application.
 func (m model) View() string {
 	pad := strings.Repeat(" ", 2)
 	statusLine := "Press 'p' to pause/play, 'q' to quit."
 	return fmt.Sprintf("\nPlaying: %s (index: %v)\n\n%s%s\n\n%s%s\n", m.qoaPlayer.filename, m.currentIndex, pad, m.qoaPlayer.progress.View(), pad, statusLine)
-}
-
-func tickCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
 }
