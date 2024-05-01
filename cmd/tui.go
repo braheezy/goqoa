@@ -155,7 +155,7 @@ func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 	prog.ShowPercentage = false
 	prog.Width = maxWidth
 
-	player := m.ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
+	player := m.ctx.NewPlayer(qoa.NewReader(qoaAudioData))
 	return &qoaPlayer{
 		filename:    filename,
 		qoaData:     qoaAudioData,
