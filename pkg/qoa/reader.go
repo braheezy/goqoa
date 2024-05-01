@@ -44,6 +44,34 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	return samplesToRead * 2, nil
 }
 
+// Seek implements the io.Seeker interface
+func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	var newPos int64
+
+	switch whence {
+	case io.SeekStart:
+		newPos = offset
+	case io.SeekCurrent:
+		newPos = int64(r.pos) + offset
+	case io.SeekEnd:
+		newPos = int64(len(r.data)) + offset
+	default:
+		return 0, ErrInvalidArgument
+	}
+
+	if newPos < 0 {
+		// prevent seeking before the beginning
+		return 0, ErrInvalidArgument
+	}
+	if newPos >= int64(len(r.data)) {
+		// prevent seeking beyond the end, handle as per your need
+		return 0, io.EOF
+	}
+	// set the new position
+	r.pos = int(newPos)
+	return newPos, nil
+}
+
 // SamplesPlayed returns the number of samples that have been read
 func (r *Reader) SamplesPlayed() int {
 	return r.pos
