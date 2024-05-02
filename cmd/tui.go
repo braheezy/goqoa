@@ -67,6 +67,7 @@ type qoaPlayer struct {
 	// https://github.com/ebitengine/oto/issues/228
 	reader         *qoa.Reader
 	currentSeconds float64
+	samplesPlayed  int
 }
 
 // initialModel creates a new model with the given filenames.
@@ -126,7 +127,7 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 	}
 
 	// Calculate length of song in nanoseconds
-	totalLength := time.Duration(int64(len(qoaAudioData))/int64(qoaMetadata.SampleRate*qoaMetadata.Channels)) * time.Second
+	totalLength := time.Duration((int64(qoaMetadata.Samples) * int64(time.Second)) / int64(qoaMetadata.SampleRate))
 
 	reader := qoa.NewReader(qoaAudioData)
 	player := ctx.NewPlayer(reader)
@@ -158,14 +159,24 @@ func (qp *qoaPlayer) getPlayerProgress() float64 {
 		return 0
 	}
 
-	// Calculate number of samples in the buffer.
-	bufferedSamples := qp.player.BufferedSize() / int(qp.qoaMetadata.Channels)
-	// Then the actual samples played is the reader position less the buffer.
-	samplesPlayed := (qp.reader.Position() - bufferedSamples) / int(qp.qoaMetadata.Channels)
+	// Calculate number of samples in buffer
+	// Multiple by 2 for 16-bit samples
+	bufferedSamples := float64(qp.player.BufferedSize()) / (float64(qp.qoaMetadata.Channels) * 2.0)
 
-	qp.currentSeconds = float64(samplesPlayed) / float64(qp.qoaMetadata.SampleRate)
+	// Calculate the actual samples played
+	samplesPlayed := float64(qp.reader.Position())/2.0 - bufferedSamples
 
-	newPercent := qp.currentSeconds / qp.totalLength.Seconds()
+	// Calculate newPercent based on samples
+	totalSamples := float64(qp.qoaMetadata.Samples)
+	newPercent := samplesPlayed / totalSamples
+	if samplesPlayed >= totalSamples {
+		newPercent = 1.0
+	}
+
+	// Update currentSeconds for potential other uses, calculated from samplesPlayed
+	qp.currentSeconds = time.Duration((int64(samplesPlayed) * int64(time.Second)) / int64(qp.qoaMetadata.SampleRate)).Seconds()
+	qp.samplesPlayed = int(samplesPlayed)
+
 	return newPercent
 }
 
@@ -233,17 +244,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
-		// If we're still playing, update accordingly
-		if m.qoaPlayer.player.IsPlaying() {
+		if m.progress.Percent() >= 1.0 {
+			m.nextSong()
+			cmd := m.progress.SetPercent(0.0)
+			return m, tea.Batch(tickCmd(), cmd)
+		} else {
 			percentDone := m.qoaPlayer.getPlayerProgress()
 			cmd := m.progress.SetPercent(percentDone)
 			// Set new progress bar percent and keep ticking
 			return m, tea.Batch(cmd, tickCmd())
-		} else if m.progress.Percent() >= 1.0 {
-			// Progress is at 100%, so song must be over.
-			m.nextSong()
-			cmd := m.progress.SetPercent(0.0)
-			return m, tea.Batch(tickCmd(), cmd)
 		}
 	// Update the progress bubble
 	case progress.FrameMsg:
