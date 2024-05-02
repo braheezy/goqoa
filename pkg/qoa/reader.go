@@ -72,7 +72,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	return newPos, nil
 }
 
-// Position returns the number of samples that have been read
+// Position returns the number of bytes that have been read
 func (r *Reader) Position() int {
 	return r.pos
 }
