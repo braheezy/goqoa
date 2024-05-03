@@ -11,8 +11,5 @@ const (
 )
 
 var (
-	statusStyle = lipgloss.NewStyle().
-		Italic(true).
-		Padding(1, 1).
-		Foreground(lipgloss.Color(qoaPink))
+	accent = lipgloss.AdaptiveColor{Dark: "#81dd97", Light: "#217b37"}
 )

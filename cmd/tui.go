@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ebitengine/oto/v3"
 )
 
@@ -48,6 +49,9 @@ type model struct {
 	keys helpKeyMap
 	// progress is the progress bubble model.
 	progress progress.Model
+	// Current terminal size
+	terminalWidth  int
+	terminalHeight int
 }
 
 // qoaPlayer handles playing QOA audio files and showing progress.
@@ -68,6 +72,7 @@ type qoaPlayer struct {
 	reader         *qoa.Reader
 	currentSeconds float64
 	samplesPlayed  int
+	bitrate        uint32
 }
 
 // initialModel creates a new model with the given filenames.
@@ -131,6 +136,8 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 
 	reader := qoa.NewReader(qoaAudioData)
 	player := ctx.NewPlayer(reader)
+	bitrate := (qoaMetadata.SampleRate * qoaMetadata.Channels * 16) / 1000
+
 	return &qoaPlayer{
 		filename:    filename,
 		qoaData:     qoaAudioData,
@@ -138,6 +145,7 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 		player:      player,
 		totalLength: totalLength,
 		reader:      reader,
+		bitrate:     bitrate,
 	}
 }
 
@@ -202,7 +210,7 @@ func (qp *qoaPlayer) seekRelative(delta time.Duration) float64 {
 // ==========================================
 // startTUI is the main entry point for the TUI.
 func startTUI(inputFiles []string) {
-	p := tea.NewProgram(initialModel(inputFiles))
+	p := tea.NewProgram(initialModel(inputFiles), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
@@ -223,7 +231,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
-		return m, nil
+		return m, m.checkRepaint(msg)
 	// Handle key presses
 	case tea.KeyMsg:
 		switch {
@@ -279,38 +287,51 @@ func (m *model) nextSong() {
 	m.currentIndex = nextIndex
 }
 
+func (m *model) checkRepaint(msg tea.WindowSizeMsg) tea.Cmd {
+	needsRepaint := false
+
+	if msg.Width < m.terminalWidth {
+		needsRepaint = true
+	}
+
+	// If we set a width on the help menu it can it can gracefully truncate
+	// its view as needed.
+	m.help.Width = msg.Width
+	m.terminalWidth = msg.Width
+	m.terminalHeight = msg.Height
+
+	if needsRepaint {
+		return tea.ClearScreen
+	}
+	return nil
+}
+
 // ==========================================
 // ================= View ===================
 // ==========================================
 // View renders the current state of the application.
 func (m model) View() string {
 	var view strings.Builder
-	// Status line
-	statusLine := fmt.Sprintf("Playing: %s (index: %v)", m.qoaPlayer.filename, m.currentIndex)
-	view.WriteString(statusStyle.Render(statusLine))
 
-	// Convert seconds to time.Duration
-	currentDuration := time.Duration(m.qoaPlayer.currentSeconds * float64(time.Second))
-	totalDuration := time.Duration(m.qoaPlayer.totalLength.Seconds() * float64(time.Second))
+	view.WriteString(m.renderTitle())
+	view.WriteRune('\n')
 
-	// Format durations using time.Duration's String method, customized for display
-	currentTimeStr := formatDuration(currentDuration)
-	totalTimeStr := formatDuration(totalDuration)
-
-	// Format the entire string
-	timeProgress := fmt.Sprintf("%s/%s", currentTimeStr, totalTimeStr)
+	// Render the stats
+	view.WriteString(m.renderStats())
+	view.WriteRune('\n')
 
 	// Song progress
-	view.WriteRune('\n')
 	view.WriteString(m.progress.View())
-	view.WriteString(timeProgress)
-	view.WriteString("\n\n")
+	view.WriteString(m.renderTime())
+	view.WriteRune('\n')
 
+	view.WriteRune('\n')
 	view.WriteString(m.help.View(m.keys))
 	view.WriteRune('\n')
 
-	return view.String()
+	return lipgloss.PlaceHorizontal(m.terminalWidth, lipgloss.Center, view.String())
 }
+
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%ds", d/time.Second) // Show seconds only if less than one minute
@@ -318,4 +339,44 @@ func formatDuration(d time.Duration) string {
 	min := d / time.Minute
 	sec := (d % time.Minute) / time.Second
 	return fmt.Sprintf("%dm%02ds", min, sec) // Show minutes and seconds if one minute or more
+}
+func (m model) renderTitle() string {
+	playingStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(qoaPink))
+
+	songStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(accent)
+
+	title := playingStyle.Render("Playing:") + " " + songStyle.Render(m.qoaPlayer.filename)
+	view := lipgloss.NewStyle().Padding(1).Render(title)
+	return view
+}
+func (m model) renderStats() string {
+	statsStyle := lipgloss.NewStyle().
+		Faint(true).
+		PaddingBottom(1)
+
+	stats := fmt.Sprintf("sample rate: %d Hz | channels: %d | bitrate: %d kbps",
+		m.qoaPlayer.qoaMetadata.SampleRate,
+		m.qoaPlayer.qoaMetadata.Channels,
+		m.qoaPlayer.bitrate)
+
+	return statsStyle.Render(stats)
+}
+func (m model) renderTime() string {
+	timeStyle := lipgloss.NewStyle().
+		Padding(0, 1).
+		Foreground(accent)
+
+	// Convert seconds to time.Duration
+	currentDuration := time.Duration(m.qoaPlayer.currentSeconds * float64(time.Second))
+	totalDuration := time.Duration(m.qoaPlayer.totalLength.Seconds() * float64(time.Second))
+	// Format durations using time.Duration's String method, customized for display
+	currentTimeStr := formatDuration(currentDuration)
+	totalTimeStr := formatDuration(totalDuration)
+	// Format the entire string
+	timeProgress := fmt.Sprintf("%s / %s", currentTimeStr, totalTimeStr)
+	return timeStyle.Render(timeProgress)
 }
