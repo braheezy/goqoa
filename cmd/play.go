@@ -41,6 +41,10 @@ var playCmd = &cobra.Command{
 				}
 			}
 		}
+		if len(allFiles) == 0 {
+			fmt.Println("No valid QOA files found :(")
+			return
+		}
 		startTUI(allFiles)
 	},
 }
@@ -53,10 +57,7 @@ func findAllQOAFiles(root string) ([]string, error) {
 			return err
 		}
 		if !info.IsDir() {
-			valid, err := qoa.IsValidQOAFile(path)
-			if err != nil {
-				return err
-			}
+			valid, _ := qoa.IsValidQOAFile(path)
 			if valid {
 				files = append(files, path)
 			}
