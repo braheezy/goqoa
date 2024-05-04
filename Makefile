@@ -4,6 +4,7 @@ PACKAGE := goqoa
 GOCMD ?= go
 GOBUILD := $(GOCMD) build
 GOINSTALL := $(GOCMD) install
+GORUN := $(GOCMD) run
 GOARCH := amd64
 
 # Build definitions
@@ -88,3 +89,6 @@ install: $(BIN)
 	@echo -e "$(YELLOW)🚀 Installing $(BIN) to appropriate location...$(END)"
 	@$(GOINSTALL) $(BUILD_ENTRY)
 	@echo -e "$(GREEN)✅ Installation complete!$(END)"
+
+playrun:
+	@$(GORUN) . play four_tet_baby.qoa

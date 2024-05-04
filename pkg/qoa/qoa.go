@@ -138,7 +138,7 @@ type QOA struct {
 	SampleRate uint32    // Sample rate of the audio
 	Samples    uint32    // Total number of audio samples
 	lms        [8]qoaLMS // LMS state per channel
-	ErrorCount int       // Count of errors during encoding/decoding
+	ErrorCount int       // Sum of best LMS errors encountered during encoding
 
 	prevScaleFactor []int
 }

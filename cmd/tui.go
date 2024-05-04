@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ebitengine/oto/v3"
 )
 
@@ -25,36 +27,6 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
-}
-
-// controlsMsg is sent to control various things about the music player.
-type controlsMsg int
-
-const (
-	start controlsMsg = iota
-	stop
-)
-
-// sendControlsMsg is a helper function to create a controlsMsg.
-func sendControlsMsg(msg controlsMsg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
-}
-
-// changeSongMsg is sent to change the song.
-type changeSongMsg int
-
-const (
-	next changeSongMsg = iota
-	prev
-)
-
-// sendChangeSongMsg is a helper function to create a changeSongMsg.
-func sendChangeSongMsg(msg changeSongMsg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
 }
 
 // ==========================================
@@ -75,6 +47,11 @@ type model struct {
 	help help.Model
 	// To support help
 	keys helpKeyMap
+	// progress is the progress bubble model.
+	progress progress.Model
+	// Current terminal size
+	terminalWidth  int
+	terminalHeight int
 }
 
 // qoaPlayer handles playing QOA audio files and showing progress.
@@ -85,20 +62,17 @@ type qoaPlayer struct {
 	player *oto.Player
 	// qoaMetadata is the QOA encoder struct.
 	qoaMetadata qoa.QOA
-	// startTime is the time when the song started playing.
-	startTime time.Time
-	// lastPauseTime is the time when the last pause started.
-	lastPauseTime time.Time
-	// totalPausedTime is the total time spent paused.
-	totalPausedTime time.Duration
 	// totalLength is the total length of the song.
 	totalLength time.Duration
 	// filename is the filename of the song being played.
 	filename string
-	// progress is the progress bubble model.
-	progress progress.Model
-	// paused is whether the song is paused.
-	paused bool
+	// reader is a pointer to the QOA reader, so we can track song position better.
+	// oto doesn't support getting the player position while it's playing but might one day:
+	// https://github.com/ebitengine/oto/issues/228
+	reader         *qoa.Reader
+	currentSeconds float64
+	samplesPlayed  int
+	bitrate        uint32
 }
 
 // initialModel creates a new model with the given filenames.
@@ -118,7 +92,12 @@ func initialModel(filenames []string) *model {
 	// Create the help bubble
 	help := help.New()
 
-	// Wait for the context to be ready
+	// Create the progress bubble
+	prog := progress.New(progress.WithGradient(qoaRed, qoaPink))
+	prog.ShowPercentage = false
+	prog.Width = maxWidth
+
+	// Wait for the audio context to be ready
 	<-ready
 
 	m := &model{
@@ -126,14 +105,17 @@ func initialModel(filenames []string) *model {
 		currentIndex: 0,
 		ctx:          ctx,
 		help:         help,
-		keys:         helpsKeys,
+		keys:         helpKeys,
+		progress:     prog,
 	}
-	m.qoaPlayer = m.newQOAPlayer(filenames[0])
+
+	m.nextSong()
+
 	return m
 }
 
 // newQOAPlayer creates a new QOA player for the given filename.
-func (m *model) newQOAPlayer(filename string) *qoaPlayer {
+func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 	_, err := qoa.IsValidQOAFile(filename)
 	if err != nil {
 		logger.Fatalf("Error validating QOA file: %v", err)
@@ -149,21 +131,78 @@ func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 		logger.Fatalf("Error decoding QOA data: %v", err)
 	}
 
-	totalLength := time.Duration(qoaMetadata.Samples/qoaMetadata.SampleRate) * time.Second
+	// Calculate length of song in nanoseconds
+	totalLength := time.Duration((int64(qoaMetadata.Samples) * int64(time.Second)) / int64(qoaMetadata.SampleRate))
 
-	prog := progress.New(progress.WithGradient(qoaRed, qoaPink))
-	prog.ShowPercentage = false
-	prog.Width = maxWidth
+	reader := qoa.NewReader(qoaAudioData)
+	player := ctx.NewPlayer(reader)
+	bitrate := (qoaMetadata.SampleRate * qoaMetadata.Channels * 16) / 1000
 
-	player := m.ctx.NewPlayer(NewQOAAudioReader(qoaAudioData))
 	return &qoaPlayer{
 		filename:    filename,
 		qoaData:     qoaAudioData,
 		qoaMetadata: *qoaMetadata,
-		progress:    prog,
 		player:      player,
 		totalLength: totalLength,
+		reader:      reader,
+		bitrate:     bitrate,
 	}
+}
+
+// togglePlayPause toggles the playing state of the player.
+func (qp *qoaPlayer) togglePlayPause() tea.Cmd {
+	if qp.player.IsPlaying() {
+		qp.player.Pause()
+		return nil
+	} else {
+		qp.player.Play()
+		// Get the progress bar updating again.
+		return tickCmd()
+	}
+}
+
+// getPlayerProgress returns the current progress of the player in percent.
+func (qp *qoaPlayer) getPlayerProgress() float64 {
+	if qp.totalLength == 0 {
+		return 0
+	}
+
+	// Calculate number of samples in buffer
+	// Multiple by 2 for 16-bit samples
+	bufferedSamples := float64(qp.player.BufferedSize()) / (float64(qp.qoaMetadata.Channels) * 2.0)
+
+	// Calculate the actual samples played
+	samplesPlayed := float64(qp.reader.Position())/2.0 - bufferedSamples
+
+	// Calculate newPercent based on samples
+	totalSamples := float64(qp.qoaMetadata.Samples)
+	newPercent := samplesPlayed / totalSamples
+	if samplesPlayed >= totalSamples {
+		newPercent = 1.0
+	}
+
+	// Update currentSeconds for potential other uses, calculated from samplesPlayed
+	qp.currentSeconds = time.Duration((int64(samplesPlayed) * int64(time.Second)) / int64(qp.qoaMetadata.SampleRate)).Seconds()
+	qp.samplesPlayed = int(samplesPlayed)
+
+	return newPercent
+}
+
+// seekForward moves the player forward by 5 seconds.
+func (qp *qoaPlayer) seekForward() float64 {
+	return qp.seekRelative(5 * time.Second)
+}
+
+// seekBack moves the player back by 7 seconds.
+func (qp *qoaPlayer) seekBack() float64 {
+	return qp.seekRelative(-7 * time.Second)
+}
+
+// seekRelative moves the player by the given delta and returns the new progress percent.
+func (qp *qoaPlayer) seekRelative(delta time.Duration) float64 {
+	sampleOffset := int64(delta.Seconds() * float64(qp.qoaMetadata.SampleRate))
+	qp.player.Seek(sampleOffset, io.SeekCurrent)
+	return qp.getPlayerProgress()
 }
 
 // ==========================================
@@ -171,26 +210,28 @@ func (m *model) newQOAPlayer(filename string) *qoaPlayer {
 // ==========================================
 // startTUI is the main entry point for the TUI.
 func startTUI(inputFiles []string) {
-	p := tea.NewProgram(initialModel(inputFiles))
+	p := tea.NewProgram(initialModel(inputFiles), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
 }
 
+// Init is the first function called by bubbletea
 func (m model) Init() tea.Cmd {
-	return tea.Batch(sendControlsMsg(start))
+	return tickCmd()
 }
 
+// Update is the bubbletea function for handling messages and updating the model.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// Handle terminal resizing
 	case tea.WindowSizeMsg:
-		m.qoaPlayer.progress.Width = msg.Width - padding*2 - 4
-		if m.qoaPlayer.progress.Width > maxWidth {
-			m.qoaPlayer.progress.Width = maxWidth
+		m.progress.Width = msg.Width - padding*2 - 4
+		if m.progress.Width > maxWidth {
+			m.progress.Width = maxWidth
 		}
-		return m, nil
+		return m, m.checkRepaint(msg)
 	// Handle key presses
 	case tea.KeyMsg:
 		switch {
@@ -200,86 +241,69 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.togglePlay):
-			var cmd tea.Cmd
-			if m.qoaPlayer.player.IsPlaying() {
-				cmd = sendControlsMsg(stop)
-			} else if m.qoaPlayer.player != nil {
-				cmd = sendControlsMsg(start)
-			}
+			cmd := m.qoaPlayer.togglePlayPause()
 			return m, cmd
-		}
-	// Handle requests to change controls (play, pause, etc.)
-	case controlsMsg:
-		switch msg {
-		case start:
-			if !m.qoaPlayer.player.IsPlaying() {
-				m.qoaPlayer.player.Play()
-				m.qoaPlayer.paused = false
-
-				// Account for time spent paused, if needed
-				if m.qoaPlayer.startTime.IsZero() {
-					m.qoaPlayer.startTime = time.Now()
-				} else {
-					m.qoaPlayer.totalPausedTime += time.Since(m.qoaPlayer.lastPauseTime)
-					m.qoaPlayer.lastPauseTime = time.Time{} // Reset last pause time
-				}
-				// Now that we are definitely playing, start the progress bubble
-				return m, tickCmd()
-			}
-		case stop:
-			m.qoaPlayer.player.Pause()
-			m.qoaPlayer.lastPauseTime = time.Now()
-			m.qoaPlayer.paused = true
-		}
-	// Handle requests to change song (prev, next, etc.)
-	case changeSongMsg:
-		switch msg {
-		case next:
-			m = nextSong(m)
-			return m, sendControlsMsg(start)
+		case key.Matches(msg, m.keys.seekForward):
+			newPercent := m.qoaPlayer.seekForward()
+			return m, m.progress.SetPercent(newPercent)
+		case key.Matches(msg, m.keys.seekBack):
+			newPercent := m.qoaPlayer.seekBack()
+			return m, m.progress.SetPercent(newPercent)
 		}
 	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
-		// Check if the song is over, ignoring progress bubble status in case the song ended before it go to 100%.
-		if !m.qoaPlayer.player.IsPlaying() && !m.qoaPlayer.paused {
-			// Just go to the next song.
-			return m, sendChangeSongMsg(next)
-		}
-		// If we're still playing, update accordingly
-		if m.qoaPlayer.player.IsPlaying() {
-			elapsed := time.Since(m.qoaPlayer.startTime) - m.qoaPlayer.totalPausedTime
-			newPercent := elapsed.Seconds() / m.qoaPlayer.totalLength.Seconds()
-			cmd := m.qoaPlayer.progress.SetPercent(newPercent)
+		if m.progress.Percent() >= 1.0 {
+			m.nextSong()
+			cmd := m.progress.SetPercent(0.0)
+			return m, tea.Batch(tickCmd(), cmd)
+		} else {
+			percentDone := m.qoaPlayer.getPlayerProgress()
+			cmd := m.progress.SetPercent(percentDone)
 			// Set new progress bar percent and keep ticking
 			return m, tea.Batch(cmd, tickCmd())
-		} else if m.qoaPlayer.progress.Percent() >= 1.0 {
-			// Progress is at 100%, so song must be over.
-			return m, tea.Batch(sendChangeSongMsg(next))
 		}
 	// Update the progress bubble
 	case progress.FrameMsg:
-		progressModel, cmd := m.qoaPlayer.progress.Update(msg)
-		m.qoaPlayer.progress = progressModel.(progress.Model)
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
 		return m, cmd
-
 	}
 	return m, nil
 }
 
 // nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.
-func nextSong(m model) model {
-	m.qoaPlayer.player.Close()
+func (m *model) nextSong() {
+	if m.qoaPlayer != nil {
+		m.qoaPlayer.player.Close()
+	}
 
 	// Select next song in filenames list, but wrap around to 0 if at end
 	nextIndex := (m.currentIndex + 1) % len(m.filenames)
 	nextFile := m.filenames[nextIndex]
 
 	// Create a new QOA player for the next song
-	m.qoaPlayer = m.newQOAPlayer(nextFile)
+	m.qoaPlayer = newQOAPlayer(nextFile, m.ctx)
+	m.qoaPlayer.player.Play()
 	m.currentIndex = nextIndex
+}
 
-	// Return the new QOA player
-	return m
+func (m *model) checkRepaint(msg tea.WindowSizeMsg) tea.Cmd {
+	needsRepaint := false
+
+	if msg.Width < m.terminalWidth {
+		needsRepaint = true
+	}
+
+	// If we set a width on the help menu it can it can gracefully truncate
+	// its view as needed.
+	m.help.Width = msg.Width
+	m.terminalWidth = msg.Width
+	m.terminalHeight = msg.Height
+
+	if needsRepaint {
+		return tea.ClearScreen
+	}
+	return nil
 }
 
 // ==========================================
@@ -288,20 +312,71 @@ func nextSong(m model) model {
 // View renders the current state of the application.
 func (m model) View() string {
 	var view strings.Builder
-	// pad := strings.Repeat(" ", 2)
-	// Status line
-	statusLine := fmt.Sprintf("Playing: %s (index: %v)", m.qoaPlayer.filename, m.currentIndex)
-	view.WriteString(statusStyle.Render(statusLine))
+
+	view.WriteString(m.renderTitle())
+	view.WriteRune('\n')
+
+	// Render the stats
+	view.WriteString(m.renderStats())
+	view.WriteRune('\n')
 
 	// Song progress
+	view.WriteString(m.progress.View())
+	view.WriteString(m.renderTime())
 	view.WriteRune('\n')
-	view.WriteString(m.qoaPlayer.progress.View())
-	view.WriteString("\n\n")
 
+	view.WriteRune('\n')
 	view.WriteString(m.help.View(m.keys))
 	view.WriteRune('\n')
 
-	// statusLine := "Press 'p' to pause/play, 'q' to quit."
-	return view.String()
+	return lipgloss.PlaceHorizontal(m.terminalWidth, lipgloss.Center, view.String())
+}
 
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", d/time.Second) // Show seconds only if less than one minute
+	}
+	min := d / time.Minute
+	sec := (d % time.Minute) / time.Second
+	return fmt.Sprintf("%dm%02ds", min, sec) // Show minutes and seconds if one minute or more
+}
+func (m model) renderTitle() string {
+	playingStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(qoaPink))
+
+	songStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(accent)
+
+	title := playingStyle.Render("Playing:") + " " + songStyle.Render(m.qoaPlayer.filename)
+	view := lipgloss.NewStyle().Padding(1).Render(title)
+	return view
+}
+func (m model) renderStats() string {
+	statsStyle := lipgloss.NewStyle().
+		Faint(true).
+		PaddingBottom(1)
+
+	stats := fmt.Sprintf("sample rate: %d Hz | channels: %d | bitrate: %d kbps",
+		m.qoaPlayer.qoaMetadata.SampleRate,
+		m.qoaPlayer.qoaMetadata.Channels,
+		m.qoaPlayer.bitrate)
+
+	return statsStyle.Render(stats)
+}
+func (m model) renderTime() string {
+	timeStyle := lipgloss.NewStyle().
+		Padding(0, 1).
+		Foreground(accent)
+
+	// Convert seconds to time.Duration
+	currentDuration := time.Duration(m.qoaPlayer.currentSeconds * float64(time.Second))
+	totalDuration := time.Duration(m.qoaPlayer.totalLength.Seconds() * float64(time.Second))
+	// Format durations using time.Duration's String method, customized for display
+	currentTimeStr := formatDuration(currentDuration)
+	totalTimeStr := formatDuration(totalDuration)
+	// Format the entire string
+	timeProgress := fmt.Sprintf("%s / %s", currentTimeStr, totalTimeStr)
+	return timeStyle.Render(timeProgress)
 }
