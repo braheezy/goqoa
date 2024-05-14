@@ -26,11 +26,6 @@ jobs:
       - name: Build
         run: go build -v .
 
-      - name: Run UPX
-        uses: crazy-max/ghaction-upx@v3
-        with:
-          files: goqoa.exe
-
       - name: Go Test
         run: go test -v ./...
 
