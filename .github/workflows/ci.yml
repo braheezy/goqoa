@@ -24,7 +24,7 @@ jobs:
         run: go get ./...
 
       - name: Build
-        run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -v .
+        run: go build -v .
 
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
