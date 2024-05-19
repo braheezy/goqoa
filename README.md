@@ -21,7 +21,7 @@ Features:
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
 ## Install
-The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows.
+The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows 10+.
 
 Otherwise, install [prerequisites](https://github.com/ebitengine/oto#prerequisite) for your platform:
 
