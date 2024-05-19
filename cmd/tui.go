@@ -10,6 +10,7 @@ import (
 	"github.com/braheezy/goqoa/pkg/qoa"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -37,6 +38,7 @@ func tickCmd() tea.Cmd {
 type model struct {
 	// filenames is a list of filenames to play.
 	filenames []string
+	fileList  list.Model
 	// currentIndex is the index of the current song playing
 	currentIndex int
 	// qoaPlayer is the QOA player
@@ -53,6 +55,14 @@ type model struct {
 	terminalWidth  int
 	terminalHeight int
 }
+
+type item struct {
+	title, desc string
+}
+
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.desc }
+func (i item) FilterValue() string { return i.title }
 
 // qoaPlayer handles playing QOA audio files and showing progress.
 type qoaPlayer struct {
@@ -91,17 +101,30 @@ func initialModel(filenames []string) *model {
 	}
 	// Create the help bubble
 	help := help.New()
+	help.ShowAll = true
 
 	// Create the progress bubble
 	prog := progress.New(progress.WithGradient(qoaRed, qoaPink))
 	prog.ShowPercentage = false
 	prog.Width = maxWidth
 
+	items := make([]list.Item, len(filenames))
+	for i, filename := range filenames {
+		items[i] = item{title: filename, desc: ""}
+	}
+	delegate := list.NewDefaultDelegate()
+	listModel := list.New(items, delegate, 0, 0)
+	listModel.SetShowHelp(false)
+	listModel.Title = "QOA Files"
+	listModel.SetStatusBarItemName("song", "songs")
+	listModel.InfiniteScrolling = true
+
 	// Wait for the audio context to be ready
 	<-ready
 
 	m := &model{
 		filenames:    filenames,
+		fileList:     listModel,
 		currentIndex: 0,
 		ctx:          ctx,
 		help:         help,
@@ -249,6 +272,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.seekBack):
 			newPercent := m.qoaPlayer.seekBack()
 			return m, m.progress.SetPercent(newPercent)
+		case key.Matches(msg, m.keys.pickSong):
+			m.loadSong(m.fileList.Index())
 		}
 	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
@@ -268,23 +293,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	m.fileList, cmd = m.fileList.Update(msg)
+	return m, cmd
 }
 
-// nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.
-func (m *model) nextSong() {
+func (m *model) loadSong(index int) {
 	if m.qoaPlayer != nil {
 		m.qoaPlayer.player.Close()
 	}
-
-	// Select next song in filenames list, but wrap around to 0 if at end
-	nextIndex := (m.currentIndex + 1) % len(m.filenames)
-	nextFile := m.filenames[nextIndex]
+	nextFile := m.filenames[index]
 
 	// Create a new QOA player for the next song
 	m.qoaPlayer = newQOAPlayer(nextFile, m.ctx)
 	m.qoaPlayer.player.Play()
-	m.currentIndex = nextIndex
+	m.fileList.Select(m.currentIndex)
+	m.currentIndex = index
+}
+
+// nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.
+func (m *model) nextSong() {
+	// Select next song in filenames list, but wrap around to 0 if at end
+	nextIndex := (m.currentIndex + 1) % len(m.filenames)
+	m.loadSong(nextIndex)
 }
 
 func (m *model) checkRepaint(msg tea.WindowSizeMsg) tea.Cmd {
@@ -311,25 +343,32 @@ func (m *model) checkRepaint(msg tea.WindowSizeMsg) tea.Cmd {
 // ==========================================
 // View renders the current state of the application.
 func (m model) View() string {
-	var view strings.Builder
+	var mainView strings.Builder
 
-	view.WriteString(m.renderTitle())
-	view.WriteRune('\n')
+	mainView.WriteString(m.renderTitle())
+	mainView.WriteRune('\n')
 
 	// Render the stats
-	view.WriteString(m.renderStats())
-	view.WriteRune('\n')
+	mainView.WriteString(m.renderStats())
+	mainView.WriteRune('\n')
 
 	// Song progress
-	view.WriteString(m.progress.View())
-	view.WriteString(m.renderTime())
-	view.WriteRune('\n')
+	mainView.WriteString(m.progress.View())
+	mainView.WriteString(m.renderTime())
+	mainView.WriteRune('\n')
 
-	view.WriteRune('\n')
-	view.WriteString(m.help.View(m.keys))
-	view.WriteRune('\n')
+	mainView.WriteRune('\n')
+	mainView.WriteString(m.help.View(m.keys))
+	mainView.WriteRune('\n')
 
-	return lipgloss.PlaceHorizontal(m.terminalWidth, lipgloss.Center, view.String())
+	m.fileList.SetHeight(m.terminalHeight - 5)
+	m.fileList.SetWidth(lipgloss.Width(mainView.String()))
+
+	fileListView := listStyle.Render(m.fileList.View())
+
+	view := lipgloss.JoinHorizontal(lipgloss.Top, fileListView, mainView.String())
+
+	return lipgloss.PlaceHorizontal(m.terminalWidth, lipgloss.Center, view)
 }
 
 func formatDuration(d time.Duration) string {

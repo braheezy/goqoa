@@ -12,4 +12,10 @@ const (
 
 var (
 	accent = lipgloss.AdaptiveColor{Dark: "#81dd97", Light: "#217b37"}
+
+	listStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			Margin(1).
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(accent)
 )
