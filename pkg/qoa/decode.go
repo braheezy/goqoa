@@ -5,36 +5,39 @@ import (
 	"errors"
 )
 
-// decodeHeader decodes the QOA header and initializes the QOA struct with header information.
-func (q *QOA) decodeHeader(bytes []byte, size int) error {
+// DecodeHeader decodes the QOA header and initializes the QOA struct with header information.
+func DecodeHeader(bytes []byte) (*QOA, error) {
+	size := len(bytes)
 	if size < QOAMinFilesize {
-		return errors.New("qoa: file too small")
+		return nil, errors.New("qoa: file too small")
 	}
 
-	p := uint32(0)
 	// Read the file header, verify the magic number ('qoaf') and read the total number of samples.
 	fileHeader := binary.BigEndian.Uint64(bytes)
-	p += 8
 
 	if (fileHeader >> 32) != QOAMagic {
-		return errors.New("qoa: invalid magic number")
+		return nil, errors.New("qoa: invalid magic number")
 	}
 
-	q.Samples = uint32(fileHeader & 0xffffffff)
-	if q.Samples == 0 {
-		return errors.New("qoa: no samples found")
+	Samples := uint32(fileHeader & 0xffffffff)
+	if Samples == 0 {
+		return nil, errors.New("qoa: no samples found")
 	}
 
 	// Peek into the first frame header to get the number of channels and the SampleRate.
-	frameHeader := binary.BigEndian.Uint64(bytes[p:])
-	q.Channels = uint32(frameHeader>>56) & 0xff
-	q.SampleRate = uint32(frameHeader>>32) & 0xffffff
+	frameHeader := binary.BigEndian.Uint64(bytes[8:])
+	Channels := uint32(frameHeader>>56) & 0xff
+	SampleRate := uint32(frameHeader>>32) & 0xffffff
 
-	if q.Channels == 0 || q.SampleRate == 0 {
-		return errors.New("qoa: first frame header is invalid")
+	if Channels == 0 || SampleRate == 0 {
+		return nil, errors.New("qoa: first frame header is invalid")
 	}
 
-	return nil
+	return &QOA{
+		Samples:    Samples,
+		Channels:   Channels,
+		SampleRate: SampleRate,
+	}, nil
 }
 
 // decodeFrame decodes a QOA frame and returns the size of the decoded frame.
@@ -109,12 +112,12 @@ func (q *QOA) decodeFrame(bytes []byte, size uint, sampleData []int16, frameLen 
 
 // Decode decodes the provided QOA encoded bytes and returns the QOA struct and the decoded audio sample data.
 func Decode(bytes []byte) (*QOA, []int16, error) {
-	q := &QOA{}
-	size := len(bytes)
-	err := q.decodeHeader(bytes, size)
+	q, err := DecodeHeader(bytes)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	size := len(bytes)
 	p := 8
 
 	// Calculate the required size of the sample buffer and allocate

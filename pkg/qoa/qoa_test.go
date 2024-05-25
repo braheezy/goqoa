@@ -197,12 +197,11 @@ func TestDecodeHeader(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			q := QOA{}
-			err := q.decodeHeader(tc.bytes, len(tc.bytes))
+			q, err := DecodeHeader(tc.bytes)
 			if tc.hasError {
 				assert.NotNil(t, err, "Expected error")
 			} else {
-				assert.Equal(t, tc.expectedQOA, q, "Incorrect QOA data")
+				assert.Equal(t, tc.expectedQOA, *q, "Incorrect QOA data")
 				assert.Nil(t, err, "Unexpected error")
 			}
 		})
