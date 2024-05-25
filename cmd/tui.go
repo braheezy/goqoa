@@ -110,14 +110,22 @@ func initialModel(filenames []string) *model {
 
 	items := make([]list.Item, len(filenames))
 	for i, filename := range filenames {
-		items[i] = item{title: filename, desc: ""}
+		qoaBytes := openFile(filename)
+		qoaMetadata, err := qoa.DecodeHeader(qoaBytes)
+		if err != nil {
+			logger.Fatalf("Error decoding QOA header: %v", err)
+		}
+		desc := formatDuration(calcSongLength(qoaMetadata))
+		items[i] = item{title: filename, desc: desc}
 	}
 	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Copy().Foreground(main)
 	listModel := list.New(items, delegate, 0, 0)
 	listModel.SetShowHelp(false)
-	listModel.Title = "QOA Files"
+	listModel.Title = "goqoa"
 	listModel.SetStatusBarItemName("song", "songs")
 	listModel.InfiniteScrolling = true
+	listModel.Styles.Title = listTitleStyle
 
 	// Wait for the audio context to be ready
 	<-ready
@@ -137,8 +145,7 @@ func initialModel(filenames []string) *model {
 	return m
 }
 
-// newQOAPlayer creates a new QOA player for the given filename.
-func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
+func openFile(filename string) []byte {
 	_, err := qoa.IsValidQOAFile(filename)
 	if err != nil {
 		logger.Fatalf("Error validating QOA file: %v", err)
@@ -149,13 +156,19 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 		logger.Fatalf("Error reading QOA file: %v", err)
 	}
 
+	return qoaBytes
+}
+
+// newQOAPlayer creates a new QOA player for the given filename.
+func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
+	qoaBytes := openFile(filename)
 	qoaMetadata, qoaAudioData, err := qoa.Decode(qoaBytes)
 	if err != nil {
 		logger.Fatalf("Error decoding QOA data: %v", err)
 	}
 
 	// Calculate length of song in nanoseconds
-	totalLength := time.Duration((int64(qoaMetadata.Samples) * int64(time.Second)) / int64(qoaMetadata.SampleRate))
+	totalLength := calcSongLength(qoaMetadata)
 
 	reader := qoa.NewReader(qoaAudioData)
 	player := ctx.NewPlayer(reader)
@@ -171,6 +184,12 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 		bitrate:     bitrate,
 	}
 }
+
+func calcSongLength(qoaMetadata *qoa.QOA) time.Duration {
+	return time.Duration((int64(qoaMetadata.Samples) * int64(time.Second)) / int64(qoaMetadata.SampleRate))
+}
+
+// initialView returns the initial view of the application.
 
 // togglePlayPause toggles the playing state of the player.
 func (qp *qoaPlayer) togglePlayPause() tea.Cmd {
@@ -254,6 +273,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
+
+		listHeight := len(m.fileList.Items()) * 5
+		if msg.Height < listHeight {
+			listHeight = msg.Height
+		}
+		m.fileList.SetSize(msg.Width/3, listHeight)
 		return m, m.checkRepaint(msg)
 	// Handle key presses
 	case tea.KeyMsg:
@@ -361,9 +386,6 @@ func (m model) View() string {
 	mainView.WriteString(m.help.View(m.keys))
 	mainView.WriteRune('\n')
 
-	m.fileList.SetHeight(m.terminalHeight - 5)
-	m.fileList.SetWidth(lipgloss.Width(mainView.String()))
-
 	fileListView := listStyle.Render(m.fileList.View())
 
 	view := lipgloss.JoinHorizontal(lipgloss.Top, fileListView, mainView.String())
@@ -372,12 +394,15 @@ func (m model) View() string {
 }
 
 func formatDuration(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d/time.Millisecond) // Fixed width for milliseconds
+	}
 	if d < time.Minute {
-		return fmt.Sprintf("%ds", d/time.Second) // Show seconds only if less than one minute
+		return fmt.Sprintf("%ds", d/time.Second) // Fixed width for seconds
 	}
 	min := d / time.Minute
 	sec := (d % time.Minute) / time.Second
-	return fmt.Sprintf("%dm%02ds", min, sec) // Show minutes and seconds if one minute or more
+	return fmt.Sprintf("%dm%ds", min, sec) // Fixed width for minutes and seconds
 }
 func (m model) renderTitle() string {
 	playingStyle := lipgloss.NewStyle().
@@ -405,17 +430,31 @@ func (m model) renderStats() string {
 	return statsStyle.Render(stats)
 }
 func (m model) renderTime() string {
-	timeStyle := lipgloss.NewStyle().
-		Padding(0, 1).
-		Foreground(accent)
 
 	// Convert seconds to time.Duration
 	currentDuration := time.Duration(m.qoaPlayer.currentSeconds * float64(time.Second))
 	totalDuration := time.Duration(m.qoaPlayer.totalLength.Seconds() * float64(time.Second))
+
 	// Format durations using time.Duration's String method, customized for display
 	currentTimeStr := formatDuration(currentDuration)
 	totalTimeStr := formatDuration(totalDuration)
-	// Format the entire string
+
+	// Calculate the widths of the time strings
+	currentTimeWidth := lipgloss.Width(currentTimeStr)
+	totalTimeWidth := lipgloss.Width(totalTimeStr)
+	separatorWidth := 3 // Width of " / "
+	totalWidth := currentTimeWidth + separatorWidth + totalTimeWidth
+
+	// Set a fixed width for the display (e.g., 20 characters)
+	fixedWidth := 12
+	leftPadding := fixedWidth - totalWidth
+
+	timeStyle := lipgloss.NewStyle().
+		Padding(0, 1).
+		Foreground(accent).
+		MarginLeft(leftPadding)
+
+	// Ensure the entire string is fixed width
 	timeProgress := fmt.Sprintf("%s / %s", currentTimeStr, totalTimeStr)
 	return timeStyle.Render(timeProgress)
 }
