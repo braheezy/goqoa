@@ -197,7 +197,7 @@ func TestDecodeHeader(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			q, err := DecodeHeader(tc.bytes, len(tc.bytes))
+			q, err := DecodeHeader(tc.bytes)
 			if tc.hasError {
 				assert.NotNil(t, err, "Expected error")
 			} else {
