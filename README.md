@@ -1,7 +1,6 @@
 # QOA: Quite OK Audio
 > The Quite OK Audio Format for Fast, Lossy Compression.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/braheezy/goqoa.svg)](https://pkg.go.dev/github.com/braheezy/goqoa)
 [![Build Status](https://github.com/braheezy/goqoa/actions/workflows/ci.yml/badge.svg)](https://github.com/braheezy/goqoa/actions)
 
 A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
@@ -35,38 +34,7 @@ Then, install directly with Go:
     go install github.com/braheezy/goqoa@latest
 
 ## `qoa` Package
-The `qoa` package is a pure Go implementation.
-
-Decode a `.qoa` file:
-```go
-data, _ := os.ReadFile("groovy-tunes.qoa")
-qoaMetadata, decodedData, err = qoa.Decode(inputData)
-// Do stuff with decodedData
-```
-
-Or encode audio samples. This example shows a WAV file:
-```go
-// Read a WAV
-data, _ := os.ReadFile("groovy-tunes.wav")
-wavReader := bytes.NewReader(data)
-wavDecoder := wav.NewDecoder(wavReader)
-wavBuffer, err := wavDecoder.FullPCMBuffer()
-
-// Figure out audio metadata and create a new QOA encoder using the info
-numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
-qoaFormat := qoa.NewEncoder(
-  uint32(wavBuffer.Format.SampleRate),
-  uint32(wavBuffer.Format.NumChannels),
-  numSamples)
-// Convert the audio data to int16 (QOA format)
-decodedData = make([]int16, len(wavBuffer.Data))
-for i, val := range wavBuffer.Data {
-  decodedData[i] = int16(val)
-}
-
-// Finally, encode the audio data
-qoaEncodedData, err := qoa.Encode(decodedData)
-```
+The library `qoa` has been moved to [this repository](https://github.com/braheezy/qoa).
 
 ## Development
 You'll need the following:

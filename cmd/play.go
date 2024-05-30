@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/braheezy/qoa"
 	"github.com/spf13/cobra"
 )
 

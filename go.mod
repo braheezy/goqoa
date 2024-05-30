@@ -1,8 +1,9 @@
 module github.com/braheezy/goqoa
 
-go 1.21.0
+go 1.21.9
 
 require (
+	github.com/braheezy/qoa v1.0.0
 	github.com/braheezy/shine-mp3 v0.1.0
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.26.2
