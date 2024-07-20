@@ -23,11 +23,13 @@ The easiest way is a pre-built binary on the [Releases](https://github.com/brahe
 
 ```bash
 wget -O /usr/bin/goqoa https://github.com/braheezy/goqoa/releases/latest/download/goqoa-linux
+chmod +x /usr/bin/goqoa
 ```
 - Mac
 
 ```zsh
 wget -O /usr/bin/goqoa https://github.com/braheezy/goqoa/releases/latest/download/goqoa-mac
+chmod +x /usr/bin/goqoa
 ```
 - Windows
 
