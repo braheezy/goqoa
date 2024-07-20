@@ -6,16 +6,11 @@
 A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
 
 Features:
-- `qoa` library package for QOA encoding and decoding
-  - Go standard library only
-  - Fuzz testing coverage
-  - Some optimizations. See [Benchmarks](#benchmarks)
-- `goqoa` CLI tool
-  - `convert` your WAV, FLAC, OGG, or MP3 files to QOA
-  - `convert` your QOA files to WAV or MP3
-  - All conversions are in pure Go, no C libraries to install
-  - `play` QOA file(s)
-  - Pre-built binaries for Linux, Windows, and Mac
+- `convert` WAV, FLAC, OGG, or MP3 files to QOA
+- `convert` QOA files to WAV or MP3
+- All conversions are in pure Go, no C libraries to install
+- `play` QOA file(s)
+- Pre-built binaries for Linux, Windows, and Mac
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
@@ -34,7 +29,7 @@ Then, install directly with Go:
     go install github.com/braheezy/goqoa@latest
 
 ## `qoa` Package
-The library `qoa` has been moved to [this repository](https://github.com/braheezy/qoa).
+The library `qoa` has been moved to [this repository](https://github.com/braheezy/qoa) so I could manage the version of the library separate from the `goqoa` CLI.
 
 ## Development
 You'll need the following:
