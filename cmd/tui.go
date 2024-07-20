@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/braheezy/qoa"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
