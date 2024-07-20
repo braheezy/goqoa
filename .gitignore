@@ -7,7 +7,8 @@ dist/
 /*.ogg
 /*.flac
 /fuzz/*.qoa
-/assets/*.gif
+/assets/after.gif
+/assets/before.gif
 *.prof
 /output_*
 /*.wav

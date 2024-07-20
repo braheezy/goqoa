@@ -3,7 +3,9 @@
 
 [![Build Status](https://github.com/braheezy/goqoa/actions/workflows/ci.yml/badge.svg)](https://github.com/braheezy/goqoa/actions)
 
-A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
+A CLI tool for working with audio files following the [QOA Format Specification](https://qoaformat.org/).
+
+![demo](./assets/demo.gif)
 
 Features:
 - `convert` WAV, FLAC, OGG, or MP3 files to QOA
