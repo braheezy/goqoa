@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/braheezy/goqoa/pkg/qoa"
+	"github.com/braheezy/qoa"
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 	"github.com/jfreymuth/oggvorbis"

@@ -1,22 +1,18 @@
 # QOA: Quite OK Audio
 > The Quite OK Audio Format for Fast, Lossy Compression.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/braheezy/goqoa.svg)](https://pkg.go.dev/github.com/braheezy/goqoa)
 [![Build Status](https://github.com/braheezy/goqoa/actions/workflows/ci.yml/badge.svg)](https://github.com/braheezy/goqoa/actions)
 
-A Go implementation of the [QOA Format Specification](https://qoaformat.org/).
+A CLI tool for working with audio files following the [QOA Format Specification](https://qoaformat.org/).
+
+![demo](./assets/demo.gif)
 
 Features:
-- `qoa` library package for QOA encoding and decoding
-  - Go standard library only
-  - Fuzz testing coverage
-  - Some optimizations. See [Benchmarks](#benchmarks)
-- `goqoa` CLI tool
-  - `convert` your WAV, FLAC, OGG, or MP3 files to QOA
-  - `convert` your QOA files to WAV or MP3
-  - All conversions are in pure Go, no C libraries to install
-  - `play` QOA file(s)
-  - Pre-built binaries for Linux, Windows, and Mac
+- `convert` WAV, FLAC, OGG, or MP3 files to QOA
+- `convert` QOA files to WAV or MP3
+- All conversions are in pure Go, no C libraries to install
+- `play` QOA file(s)
+- Pre-built binaries for Linux, Windows, and Mac
 
 [This blog post](https://phoboslab.org/log/2023/02/qoa-time-domain-audio-compression) by the author of QOA is a great introduction to the format and how it works.
 
@@ -35,38 +31,7 @@ Then, install directly with Go:
     go install github.com/braheezy/goqoa@latest
 
 ## `qoa` Package
-The `qoa` package is a pure Go implementation.
-
-Decode a `.qoa` file:
-```go
-data, _ := os.ReadFile("groovy-tunes.qoa")
-qoaMetadata, decodedData, err = qoa.Decode(inputData)
-// Do stuff with decodedData
-```
-
-Or encode audio samples. This example shows a WAV file:
-```go
-// Read a WAV
-data, _ := os.ReadFile("groovy-tunes.wav")
-wavReader := bytes.NewReader(data)
-wavDecoder := wav.NewDecoder(wavReader)
-wavBuffer, err := wavDecoder.FullPCMBuffer()
-
-// Figure out audio metadata and create a new QOA encoder using the info
-numSamples := uint32(len(wavBuffer.Data) / wavBuffer.Format.NumChannels)
-qoaFormat := qoa.NewEncoder(
-  uint32(wavBuffer.Format.SampleRate),
-  uint32(wavBuffer.Format.NumChannels),
-  numSamples)
-// Convert the audio data to int16 (QOA format)
-decodedData = make([]int16, len(wavBuffer.Data))
-for i, val := range wavBuffer.Data {
-  decodedData[i] = int16(val)
-}
-
-// Finally, encode the audio data
-qoaEncodedData, err := qoa.Encode(decodedData)
-```
+The library `qoa` has been moved to [this repository](https://github.com/braheezy/qoa) so I could manage the version of the library separate from the `goqoa` CLI.
 
 ## Development
 You'll need the following:
