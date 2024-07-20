@@ -19,6 +19,25 @@ Features:
 ## Install
 The easiest way is a pre-built binary on the [Releases](https://github.com/braheezy/goqoa/releases) page. I tested it works on Linux and Windows 10+.
 
+- Linux
+
+```bash
+wget -O /usr/bin/goqoa https://github.com/braheezy/goqoa/releases/latest/download/goqoa-linux
+```
+- Mac
+
+```zsh
+wget -O /usr/bin/goqoa https://github.com/braheezy/goqoa/releases/latest/download/goqoa-mac
+```
+- Windows
+
+```powershell
+mkdir $HOME\goqoa
+iwr "https://github.com/braheezy/goqoa/releases/latest/download/goqoa.exe" -OutFile "$HOME\goqoa\goqoa.exe"
+$env:Path += ";$HOME\goqoa"
+[System.Environment]::SetEnvironmentVariable("Path", $env:Path, "User")
+```
+
 Otherwise, install [prerequisites](https://github.com/ebitengine/oto#prerequisite) for your platform:
 
     # Fedora
@@ -29,6 +48,12 @@ Otherwise, install [prerequisites](https://github.com/ebitengine/oto#prerequisit
 Then, install directly with Go:
 
     go install github.com/braheezy/goqoa@latest
+
+Or, checkout the project, build it from source, and install:
+
+    git clone https://github.com/braheezy/goqoa.git
+    cd goqoa
+    make install
 
 ## `qoa` Package
 The library `qoa` has been moved to [this repository](https://github.com/braheezy/qoa) so I could manage the version of the library separate from the `goqoa` CLI.
@@ -42,6 +67,8 @@ You'll need the following:
 Then you can `make build` to get a binary.
 
 `make test` will run Go unit tests.
+
+`make` to see all options.
 
 ### Reference Testing
 This is a rewrite of the QOA implementation, not a transpile of or a CGO wrapper to `qoa.h`. It's a simple enough encoding that the code can be compared side-by-side to ensure the same algorithm has been implemented.
