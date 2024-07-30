@@ -54,6 +54,8 @@ type model struct {
 	// Current terminal size
 	terminalWidth  int
 	terminalHeight int
+	// whether to autoplay or not
+	autoplay bool
 }
 
 type item struct {
@@ -99,6 +101,7 @@ func initialModel(filenames []string) *model {
 	if err != nil {
 		panic("oto.NewContext failed: " + err.Error())
 	}
+
 	// Create the help bubble
 	help := help.New()
 	help.ShowAll = true
@@ -138,6 +141,7 @@ func initialModel(filenames []string) *model {
 		help:         help,
 		keys:         helpKeys,
 		progress:     prog,
+		autoplay:     true,
 	}
 
 	m.nextSong()
@@ -299,10 +303,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.progress.SetPercent(newPercent)
 		case key.Matches(msg, m.keys.pickSong):
 			m.loadSong(m.fileList.Index())
+		case key.Matches(msg, m.keys.toggleAutoplay):
+			m.autoplay = !m.autoplay
 		}
 	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
-		if m.progress.Percent() >= 1.0 {
+		if m.progress.Percent() >= 1.0 && m.autoplay {
 			m.nextSong()
 			cmd := m.progress.SetPercent(0.0)
 			return m, tea.Batch(tickCmd(), cmd)
