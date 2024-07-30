@@ -122,7 +122,7 @@ func initialModel(filenames []string) *model {
 		items[i] = item{title: filename, desc: desc}
 	}
 	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Copy().Foreground(main)
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(main)
 	listModel := list.New(items, delegate, 0, 0)
 	listModel.SetShowHelp(false)
 	listModel.Title = "goqoa"
