@@ -136,7 +136,7 @@ func initialModel(filenames []string) *model {
 	m := &model{
 		filenames:    filenames,
 		fileList:     listModel,
-		currentIndex: 0,
+		currentIndex: -1,
 		ctx:          ctx,
 		help:         help,
 		keys:         helpKeys,
@@ -339,8 +339,8 @@ func (m *model) loadSong(index int) {
 	// Create a new QOA player for the next song
 	m.qoaPlayer = newQOAPlayer(nextFile, m.ctx)
 	m.qoaPlayer.player.Play()
-	m.fileList.Select(m.currentIndex)
 	m.currentIndex = index
+	m.fileList.Select(m.currentIndex)
 }
 
 // nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.
