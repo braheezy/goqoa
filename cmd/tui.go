@@ -174,7 +174,7 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 	// Calculate length of song in nanoseconds
 	totalLength := calcSongLength(qoaMetadata)
 
-	reader := qoa.NewReader(qoaAudioData)
+	reader := qoa.NewReader(qoaAudioData, int(qoaMetadata.Channels))
 	player := ctx.NewPlayer(reader)
 	bitrate := (qoaMetadata.SampleRate * qoaMetadata.Channels * 16) / 1000
 
@@ -218,7 +218,11 @@ func (qp *qoaPlayer) getPlayerProgress() float64 {
 	bufferedSamples := float64(qp.player.BufferedSize()) / (float64(qp.qoaMetadata.Channels) * 2.0)
 
 	// Calculate the actual samples played
-	samplesPlayed := float64(qp.reader.Position())/2.0 - bufferedSamples
+	samplesPlayed := float64(qp.reader.SamplesRead()) - bufferedSamples
+
+	if samplesPlayed < 0 {
+		samplesPlayed = 0
+	}
 
 	// Calculate newPercent based on samples
 	totalSamples := float64(qp.qoaMetadata.Samples)
