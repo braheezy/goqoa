@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "2.2.0"
+var version = "3.0.1"
 
 var rootCmd = &cobra.Command{
 	Use:   "goqoa",
