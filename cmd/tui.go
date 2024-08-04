@@ -89,14 +89,21 @@ type qoaPlayer struct {
 
 // initialModel creates a new model with the given filenames.
 func initialModel(filenames []string) *model {
+	// peek the first file to get audio context info
+	qoaBytes := openFile(filenames[0])
+	qoaMetadata, err := qoa.DecodeHeader(qoaBytes)
+	if err != nil {
+		logger.Fatalf("Error decoding QOA header: %v", err)
+	}
 	// Prepare an Oto context (this will use the default audio device)
 	ctx, ready, err := oto.NewContext(
 		&oto.NewContextOptions{
 			// Typically 44100 or 48000, we could get it from a QOA file but we'd have to decode one.
-			SampleRate: 44100,
+			SampleRate: int(qoaMetadata.SampleRate),
 			// only 1 or 2 are supported by oto
-			ChannelCount: 2,
-			Format:       oto.FormatSignedInt16LE,
+			ChannelCount: int(qoaMetadata.Channels),
+			// QOA is always 16 bit
+			Format: oto.FormatSignedInt16LE,
 		})
 	if err != nil {
 		panic("oto.NewContext failed: " + err.Error())
@@ -218,7 +225,7 @@ func (qp *qoaPlayer) getPlayerProgress() float64 {
 	bufferedSamples := float64(qp.player.BufferedSize()) / (float64(qp.qoaMetadata.Channels) * 2.0)
 
 	// Calculate the actual samples played
-	samplesPlayed := float64(qp.reader.SamplesRead()) - bufferedSamples
+	samplesPlayed := float64(qp.reader.Position()) - bufferedSamples
 
 	if samplesPlayed < 0 {
 		samplesPlayed = 0
