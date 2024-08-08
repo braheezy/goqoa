@@ -95,17 +95,25 @@ func convertAudio(inputFile, outputFile string) {
 		wavReader := bytes.NewReader(inputData)
 		wavDecoder := wav.NewDecoder(wavReader)
 
+		// Read the WAV header to get format information
+		if err := wavDecoder.FwdToPCM(); err != nil {
+			log.Fatalf("Error reading WAV file header: %v", err)
+		}
+
+		if wavDecoder.BitDepth < 16 {
+			logger.Fatalf("Bit depth too low (%v < 16), cannot encode to QOA format!", wavDecoder.BitDepth)
+		}
+
 		// Attempt to estimate total number of samples
-		// This part is tricky without decoding, but WAV files have their total data size in the header
-		// For the purpose of demonstration, assuming an average bit depth and stereo channels
-		fileSize := int64(len(inputData))
+		bytesPerSample := int(wavDecoder.BitDepth / 8)
+		numSamples := wavDecoder.PCMSize / (int(wavDecoder.NumChans) * bytesPerSample)
 
 		// Preallocate decodedData slice based on the estimation
-		decodedData = make([]int16, fileSize)
+		decodedData = make([]int16, numSamples*int(wavDecoder.NumChans))
 
 		// Initialize an audio.IntBuffer to hold the PCM data
 		pcmBuffer := &audio.IntBuffer{Data: make([]int, 4096), Format: wavDecoder.Format()}
-		numSamples := uint32(0)
+		sampleIndex := 0
 
 		for {
 			n, err := wavDecoder.PCMBuffer(pcmBuffer)
@@ -118,17 +126,17 @@ func convertAudio(inputFile, outputFile string) {
 
 			// Directly copy the decoded PCM data to decodedData slice at the correct position
 			for i := 0; i < n; i++ {
-				decodedData[numSamples*uint32(pcmBuffer.Format.NumChannels)+uint32(i)] = int16(pcmBuffer.Data[i])
+				decodedData[sampleIndex] = int16(pcmBuffer.Data[i])
+				sampleIndex++
 			}
-			numSamples += uint32(n) / uint32(pcmBuffer.Format.NumChannels)
 		}
 
-		decodedData = decodedData[:numSamples*uint32(pcmBuffer.Format.NumChannels)]
+		decodedData = decodedData[:sampleIndex]
 
 		q = qoa.NewEncoder(
 			uint32(wavDecoder.Format().SampleRate),
 			uint32(wavDecoder.Format().NumChannels),
-			numSamples,
+			uint32(numSamples),
 		)
 
 		logger.Debug(
@@ -138,7 +146,7 @@ func convertAudio(inputFile, outputFile string) {
 			"samples/channel", numSamples,
 			"bit depth", wavDecoder.SampleBitDepth(),
 			"size", formatSize(len(inputData)),
-			"duration", fmt.Sprintf("%v sec", numSamples/uint32(pcmBuffer.Format.SampleRate)),
+			"duration", fmt.Sprintf("%v sec", numSamples/pcmBuffer.Format.SampleRate),
 		)
 		if wavDecoder.SampleBitDepth() > 16 {
 			logger.Warn("Bit depth is greater than 16, this may result in loss of precision and sound quality!")

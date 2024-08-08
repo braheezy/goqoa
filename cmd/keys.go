@@ -3,15 +3,16 @@ package cmd
 import "github.com/charmbracelet/bubbles/key"
 
 type helpKeyMap struct {
-	togglePlay   key.Binding
-	quit         key.Binding
-	seek         key.Binding
-	seekBack     key.Binding
-	seekForward  key.Binding
-	selectSong   key.Binding
-	previousSong key.Binding
-	nextSong     key.Binding
-	pickSong     key.Binding
+	togglePlay     key.Binding
+	quit           key.Binding
+	seek           key.Binding
+	seekBack       key.Binding
+	seekForward    key.Binding
+	selectSong     key.Binding
+	previousSong   key.Binding
+	nextSong       key.Binding
+	pickSong       key.Binding
+	toggleAutoplay key.Binding
 }
 
 var helpKeys = helpKeyMap{
@@ -47,6 +48,10 @@ var helpKeys = helpKeyMap{
 		key.WithKeys("enter", "j"),
 		key.WithHelp("enter", "pick song"),
 	),
+	toggleAutoplay: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "toggle autoplay"),
+	),
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
@@ -54,7 +59,7 @@ func (k helpKeyMap) ShortHelp() []key.Binding {
 }
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.togglePlay, k.seek},
+		{k.togglePlay, k.seek, k.toggleAutoplay},
 		{k.selectSong, k.pickSong},
 		{k.quit},
 	}

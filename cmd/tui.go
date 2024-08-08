@@ -54,6 +54,8 @@ type model struct {
 	// Current terminal size
 	terminalWidth  int
 	terminalHeight int
+	// whether to autoplay or not
+	autoplay bool
 }
 
 type item struct {
@@ -87,18 +89,26 @@ type qoaPlayer struct {
 
 // initialModel creates a new model with the given filenames.
 func initialModel(filenames []string) *model {
+	// peek the first file to get audio context info
+	qoaBytes := openFile(filenames[0])
+	qoaMetadata, err := qoa.DecodeHeader(qoaBytes)
+	if err != nil {
+		logger.Fatalf("Error decoding QOA header: %v", err)
+	}
 	// Prepare an Oto context (this will use the default audio device)
 	ctx, ready, err := oto.NewContext(
 		&oto.NewContextOptions{
 			// Typically 44100 or 48000, we could get it from a QOA file but we'd have to decode one.
-			SampleRate: 44100,
+			SampleRate: int(qoaMetadata.SampleRate),
 			// only 1 or 2 are supported by oto
-			ChannelCount: 2,
-			Format:       oto.FormatSignedInt16LE,
+			ChannelCount: int(qoaMetadata.Channels),
+			// QOA is always 16 bit
+			Format: oto.FormatSignedInt16LE,
 		})
 	if err != nil {
 		panic("oto.NewContext failed: " + err.Error())
 	}
+
 	// Create the help bubble
 	help := help.New()
 	help.ShowAll = true
@@ -119,7 +129,7 @@ func initialModel(filenames []string) *model {
 		items[i] = item{title: filename, desc: desc}
 	}
 	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Copy().Foreground(main)
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(main)
 	listModel := list.New(items, delegate, 0, 0)
 	listModel.SetShowHelp(false)
 	listModel.Title = "goqoa"
@@ -133,11 +143,12 @@ func initialModel(filenames []string) *model {
 	m := &model{
 		filenames:    filenames,
 		fileList:     listModel,
-		currentIndex: 0,
+		currentIndex: -1,
 		ctx:          ctx,
 		help:         help,
 		keys:         helpKeys,
 		progress:     prog,
+		autoplay:     true,
 	}
 
 	m.nextSong()
@@ -170,7 +181,7 @@ func newQOAPlayer(filename string, ctx *oto.Context) *qoaPlayer {
 	// Calculate length of song in nanoseconds
 	totalLength := calcSongLength(qoaMetadata)
 
-	reader := qoa.NewReader(qoaAudioData)
+	reader := qoa.NewReader(qoaAudioData, int(qoaMetadata.Channels))
 	player := ctx.NewPlayer(reader)
 	bitrate := (qoaMetadata.SampleRate * qoaMetadata.Channels * 16) / 1000
 
@@ -214,7 +225,11 @@ func (qp *qoaPlayer) getPlayerProgress() float64 {
 	bufferedSamples := float64(qp.player.BufferedSize()) / (float64(qp.qoaMetadata.Channels) * 2.0)
 
 	// Calculate the actual samples played
-	samplesPlayed := float64(qp.reader.Position())/2.0 - bufferedSamples
+	samplesPlayed := float64(qp.reader.Position()) - bufferedSamples
+
+	if samplesPlayed < 0 {
+		samplesPlayed = 0
+	}
 
 	// Calculate newPercent based on samples
 	totalSamples := float64(qp.qoaMetadata.Samples)
@@ -299,10 +314,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.progress.SetPercent(newPercent)
 		case key.Matches(msg, m.keys.pickSong):
 			m.loadSong(m.fileList.Index())
+		case key.Matches(msg, m.keys.toggleAutoplay):
+			m.autoplay = !m.autoplay
 		}
 	// Update the progress. This is called periodically, so also handle songs that are over.
 	case tickMsg:
-		if m.progress.Percent() >= 1.0 {
+		if m.progress.Percent() >= 1.0 && m.autoplay {
 			m.nextSong()
 			cmd := m.progress.SetPercent(0.0)
 			return m, tea.Batch(tickCmd(), cmd)
@@ -333,8 +350,8 @@ func (m *model) loadSong(index int) {
 	// Create a new QOA player for the next song
 	m.qoaPlayer = newQOAPlayer(nextFile, m.ctx)
 	m.qoaPlayer.player.Play()
-	m.fileList.Select(m.currentIndex)
 	m.currentIndex = index
+	m.fileList.Select(m.currentIndex)
 }
 
 // nextSong changes to the next song in the filenames list, wrapping around to 0 if needed.

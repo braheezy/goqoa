@@ -10,11 +10,16 @@ import (
 )
 
 var playCmd = &cobra.Command{
-	Use:   "play <file/directories>",
+	Use:   "play [<file/directories>]",
 	Short: "Play .qoa audio file(s)",
-	Long:  "Provide one or more QOA files to play.",
-	Args:  cobra.MinimumNArgs(1),
+	Long:  "Provide one or more QOA files to play. If none are provided, the current directory is tried by default.",
+	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Use current directory if no arguments are provided
+		if len(args) == 0 {
+			args = append(args, ".")
+		}
+
 		// Input is one or more files or directories. Find all QOA files, recursively.
 		var allFiles []string
 		for _, arg := range args {
