@@ -7,7 +7,7 @@ require (
 	github.com/braheezy/shine-mp3 v0.1.0
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.26.6
-	github.com/charmbracelet/lipgloss v0.12.1
+	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/ebitengine/oto/v3 v3.2.0
 	github.com/go-audio/audio v1.0.0
