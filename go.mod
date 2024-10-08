@@ -5,7 +5,7 @@ go 1.21.9
 require (
 	github.com/braheezy/qoa v1.0.2
 	github.com/braheezy/shine-mp3 v0.1.0
-	github.com/charmbracelet/bubbles v0.19.0
+	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/log v0.4.0
