@@ -34,9 +34,7 @@ jobs:
           name: windows
           path: goqoa.exe
   build-mac:
-    # The OGG to QOA conversion test fails on macOS 14 because the checksum doesn't match.
-    # That doesn't feel like my problem so we'll stay on macOS 12 for now.
-    runs-on: macos-12
+    runs-on: macos-latest
     env:
       GO111MODULE: "on"
       CGO_ENABLED: 1
