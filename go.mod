@@ -5,7 +5,6 @@ go 1.23.2
 toolchain go1.23.3
 
 require (
-	github.com/braheezy/goqoa v1.1.0
 	github.com/braheezy/qoa v1.0.3
 	github.com/braheezy/shine-mp3 v0.1.0
 	github.com/charmbracelet/bubbles v0.20.0
@@ -49,7 +48,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/viert/go-lame v0.0.0-20201108052322-bb552596b11d // indirect
 	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
