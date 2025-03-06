@@ -50,7 +50,13 @@ var playCmd = &cobra.Command{
 			fmt.Println("No valid QOA files found :(")
 			return
 		}
-		startTUI(allFiles)
+
+		noTUI, _ := cmd.Flags().GetBool("no-tui")
+		if noTUI {
+			startMinimalPlayer(allFiles[0]) // Only play first file in minimal mode
+		} else {
+			startTUI(allFiles)
+		}
 	},
 }
 
@@ -73,4 +79,5 @@ func findAllQOAFiles(root string) ([]string, error) {
 }
 func init() {
 	rootCmd.AddCommand(playCmd)
+	playCmd.Flags().BoolP("no-tui", "n", false, "Play audio without the TUI interface")
 }
