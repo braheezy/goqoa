@@ -15,6 +15,8 @@ import (
 	"github.com/go-audio/wav"
 	"github.com/jfreymuth/oggvorbis"
 	"github.com/mewkiz/flac"
+	"github.com/mewkiz/flac/frame"
+	"github.com/mewkiz/flac/meta"
 
 	"github.com/spf13/cobra"
 )
@@ -76,7 +78,7 @@ func convertAudio(inputFile, outputFile string) {
 		logger.Fatalf("Error loading audio file: %v\n", err)
 	}
 
-	// For the given input file type, we will obtain these values
+	// For the given input file type, we will obtain these values.
 	// decodedData is the audio data converted to int16 (QOA format)
 	var decodedData []int16
 	// q is the QOA description. It is easiest created while decoding the input file.
@@ -285,10 +287,128 @@ func convertAudio(inputFile, outputFile string) {
 		logger.Fatal("And that's not supported yet...")
 	case ".flac":
 		logger.Info("Output format is FLAC")
-		logger.Fatal("And that's not supported yet...")
+		flacFile, err := os.Create(outputFile)
+		if err != nil {
+			log.Fatalf("Error creating QOA file: %v", err)
+		}
+		defer flacFile.Close()
+
+		numChannels := int(q.Channels)
+
+		flacEnc, err := flac.NewEncoder(flacFile, &meta.StreamInfo{
+			SampleRate:    uint32(q.SampleRate),
+			NChannels:     uint8(numChannels),
+			BitsPerSample: 16,
+			BlockSizeMin:  16,
+			BlockSizeMax:  4096,
+		})
+		if err != nil {
+			log.Fatalf("Failed to initialize FLAC encoder: %v", err)
+		}
+		// Put the audio data into FLAC frames
+		const numSamplesPerChannel = 16
+		totalSamples := len(decodedData) / numChannels
+
+		subframes := make([]*frame.Subframe, numChannels)
+		for i := range subframes {
+			subframes[i] = &frame.Subframe{
+				Samples: make([]int32, numSamplesPerChannel),
+			}
+		}
+
+		for i := 0; i < totalSamples; i += numSamplesPerChannel {
+			end := i + numSamplesPerChannel
+			if end > totalSamples {
+				end = totalSamples
+			}
+
+			actualBlockSize := end - i
+
+			for _, subframe := range subframes {
+				subHdr := frame.SubHeader{
+					Pred:   frame.PredVerbatim,
+					Order:  0,
+					Wasted: 0,
+				}
+				subframe.SubHeader = subHdr
+				subframe.NSamples = actualBlockSize
+				subframe.Samples = subframe.Samples[:subframe.NSamples]
+			}
+
+			// Map PCM data into subframes
+			for sampleIdx := 0; sampleIdx < actualBlockSize*numChannels; sampleIdx++ {
+				ch := sampleIdx % numChannels
+				frameIndex := sampleIdx / numChannels
+				subframes[ch].Samples[frameIndex] = int32(decodedData[((i+frameIndex)*numChannels)+ch])
+			}
+			// Optimize for Constant Prediction
+			// for _, subframe := range subframes {
+			// 	sample := subframe.Samples[0]
+			// 	constant := true
+			// 	for _, s := range subframe.Samples[1:] {
+			// 		if s != sample {
+			// 			constant = false
+			// 			break
+			// 		}
+			// 	}
+			// 	if constant {
+			// 		subframe.SubHeader.Pred = frame.PredConstant
+			// 	}
+			// }
+
+			// Construct FLAC Frame
+			channels, err := getFLACChannels(numChannels)
+			if err != nil {
+				log.Fatalf("Error getting FLAC channels: %v", err)
+			}
+
+			frameData := &frame.Frame{
+				Header: frame.Header{
+					HasFixedBlockSize: false,
+					BlockSize:         uint16(actualBlockSize),
+					SampleRate:        uint32(q.SampleRate),
+					Channels:          channels,
+					BitsPerSample:     16,
+				},
+				Subframes: subframes,
+			}
+
+			// Write FLAC Frame
+			if err := flacEnc.WriteFrame(frameData); err != nil {
+				log.Fatalf("Error writing FLAC frame: %v", err)
+			}
+
+		}
+
+		if err := flacEnc.Close(); err != nil {
+			log.Fatalf("Error closing FLAC encoder: %v", err)
+		}
 	}
 
 	logger.Infof("Conversion completed: %s -> %s", inputFile, outputFile)
+}
+
+func getFLACChannels(numChannels int) (frame.Channels, error) {
+	switch numChannels {
+	case 1:
+		return frame.ChannelsMono, nil
+	case 2:
+		return frame.ChannelsLR, nil
+	case 3:
+		return frame.ChannelsLRC, nil
+	case 4:
+		return frame.ChannelsLRLsRs, nil
+	case 5:
+		return frame.ChannelsLRCLsRs, nil
+	case 6:
+		return frame.ChannelsLRCLfeLsRs, nil
+	case 7:
+		return frame.ChannelsLRCLfeCsSlSr, nil
+	case 8:
+		return frame.ChannelsLRCLfeLsRsSlSr, nil
+	default:
+		return 0, fmt.Errorf("unsupported channel count: %d", numChannels)
+	}
 }
 
 // formatSize converts the inputSize to a human readable format
