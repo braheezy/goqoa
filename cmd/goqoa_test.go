@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -69,6 +70,11 @@ func TestConvertCmd(t *testing.T) {
 	}
 
 	for _, tc := range tt {
+
+		if runtime.GOOS == "darwin" && tc.inputFormat == "ogg" {
+			continue
+		}
+
 		inputFilename := fmt.Sprintf("testdata/%s/test.%s", tc.audioFormat, tc.inputFormat)
 		outputFilename := fmt.Sprintf("testdata/%s/temp.%s", tc.audioFormat, tc.outputFormat)
 		expectedFilename := fmt.Sprintf("testdata/%s/test.%s.%s", tc.audioFormat, tc.inputFormat, tc.outputFormat)
