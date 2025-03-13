@@ -23,7 +23,7 @@ BINARIES := $(addprefix $(BIN_DIR)/,$(addsuffix /$(PACKAGE)$(EXTENSION),$(PLATFO
 
 # Fancy colors
 BOLD := $(shell tput bold)
-ITALIC := \e[3m
+ITALIC := $(shell tput dim)
 YELLOW := $(shell tput setaf 222)
 GREEN := $(shell tput setaf 114)
 BLUE := $(shell tput setaf 111)
@@ -46,8 +46,18 @@ export help_text
 
 .PHONY: test clean help build all install run debug
 
+# Determine OS-specific echo command
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+  # macOS doesn't need -e flag
+  ECHO := echo
+else
+  # Linux and others need -e flag to interpret escape sequences
+  ECHO := echo -e
+endif
+
 help:
-	@echo -e "$$help_text"
+	@$(ECHO) "$$help_text"
 
 # Select the right binary for the current host
 ifeq ($(OS),Windows_NT)
@@ -66,29 +76,29 @@ SOURCES := $(shell find . -name "*.go")
 SOURCES += go.mod go.sum
 
 all: $(BINARIES)
-	@echo -e "$(GREEN)📦️ Builds are complete: $(END)$(PURPLE)$(BIN_DIR)$(END)"
+	@$(ECHO) "$(GREEN)📦️ Builds are complete: $(END)$(PURPLE)$(BIN_DIR)$(END)"
 
 $(BIN_DIR)/%/$(PACKAGE)$(EXTENSION): $(SOURCES)
-	@echo -e "$(YELLOW)🚧 Building $@...$(END)"
+	@$(ECHO) "$(YELLOW)🚧 Building $@...$(END)"
 	@CGO_ENABLED=1 GOARCH=$(GOARCH) GOOS=$* $(GOBUILD) -o $@ $(BUILD_ENTRY)
 
 build: $(BIN)
-	@echo -e "$(GREEN)📦️ Build is complete: $(END)$(PURPLE)$(BIN)$(END)"
+	@$(ECHO) "$(GREEN)📦️ Build is complete: $(END)$(PURPLE)$(BIN)$(END)"
 
 clean:
 	@rm -rf $(BIN_DIR)
-	@echo -e "$(GREEN)Cleaned!$(END)"
+	@$(ECHO) "$(GREEN)Cleaned!$(END)"
 
 TEST_FILES = $(PWD)/pkg/qoa/
 test:
-	@echo -e "$(YELLOW)Testing...$(END)"
+	@$(ECHO) "$(YELLOW)Testing...$(END)"
 	@go test $(TEST_FILES)
-	@echo -e "$(GREEN)✅ Test is complete!$(END)"
+	@$(ECHO) "$(GREEN)✅ Test is complete!$(END)"
 
 install: $(BIN)
-	@echo -e "$(YELLOW)🚀 Installing $(BIN) to appropriate location...$(END)"
+	@$(ECHO) "$(YELLOW)🚀 Installing $(BIN) to appropriate location...$(END)"
 	@$(GOINSTALL) $(BUILD_ENTRY)
-	@echo -e "$(GREEN)✅ Installation complete!$(END)"
+	@$(ECHO) "$(GREEN)✅ Installation complete!$(END)"
 
 playrun:
 	@$(GORUN) . play four_tet_baby.qoa
