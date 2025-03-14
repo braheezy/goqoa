@@ -53,6 +53,11 @@ func TestConvertCmd(t *testing.T) {
 			outputFormat: "qoa",
 		},
 		{
+			audioFormat:  "flac",
+			inputFormat:  "qoa",
+			outputFormat: "flac",
+		},
+		{
 			audioFormat:  "mp3",
 			inputFormat:  "mp3",
 			outputFormat: "qoa",
