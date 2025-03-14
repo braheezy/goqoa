@@ -11,7 +11,7 @@ A CLI tool for working with audio files following the [QOA Format Specification]
 Features:
 
 - `convert` WAV, FLAC, OGG, or MP3 files to QOA
-- `convert` QOA files to WAV or MP3
+- `convert` QOA files to WAV, MP3, or FLAC
 - All conversions are in pure Go, no C libraries to install
 - `play` QOA file(s)
 - Pre-built binaries for Linux, Windows, and Mac
