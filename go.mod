@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/charmbracelet/log v0.4.0
+	github.com/charmbracelet/log v0.4.1
 	github.com/ebitengine/oto/v3 v3.3.2
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
@@ -18,7 +18,7 @@ require (
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.12
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
