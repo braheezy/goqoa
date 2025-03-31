@@ -11,10 +11,10 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.1
-	github.com/ebitengine/oto/v3 v3.3.2
+	github.com/ebitengine/oto/v3 v3.3.3
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
-	github.com/hajimehoshi/ebiten/v2 v2.8.6
+	github.com/hajimehoshi/ebiten/v2 v2.8.7
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.12
 	github.com/spf13/cobra v1.9.1
