@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/braheezy/qoa v1.0.3
 	github.com/braheezy/shine-mp3 v0.1.0
-	github.com/charmbracelet/bubbles v0.20.0
+	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.1
