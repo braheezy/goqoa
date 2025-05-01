@@ -14,7 +14,7 @@ require (
 	github.com/ebitengine/oto/v3 v3.3.3
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
-	github.com/hajimehoshi/ebiten/v2 v2.8.6
+	github.com/hajimehoshi/ebiten/v2 v2.8.8
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.12
 	github.com/spf13/cobra v1.9.1
