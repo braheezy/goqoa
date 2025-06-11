@@ -5,7 +5,6 @@ GOCMD ?= go
 GOBUILD := $(GOCMD) build
 GOINSTALL := $(GOCMD) install
 GORUN := $(GOCMD) run
-GOARCH := amd64
 
 # Build definitions
 BUILD_ENTRY := $(PWD)
@@ -80,7 +79,7 @@ all: $(BINARIES)
 
 $(BIN_DIR)/%/$(PACKAGE)$(EXTENSION): $(SOURCES)
 	@$(ECHO) "$(YELLOW)🚧 Building $@...$(END)"
-	@CGO_ENABLED=1 GOARCH=$(GOARCH) GOOS=$* $(GOBUILD) -o $@ $(BUILD_ENTRY)
+	@CGO_ENABLED=0 GOOS=$* $(GOBUILD) -o $@ $(BUILD_ENTRY)
 
 build: $(BIN)
 	@$(ECHO) "$(GREEN)📦️ Build is complete: $(END)$(PURPLE)$(BIN)$(END)"

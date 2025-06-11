@@ -12,10 +12,12 @@ require (
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/ebitengine/oto/v3 v3.3.2
+	github.com/ebitengine/purego v0.8.2
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
 	github.com/hajimehoshi/ebiten/v2 v2.8.6
 	github.com/jfreymuth/oggvorbis v1.0.5
+	github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757
 	github.com/mewkiz/flac v1.0.12
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.9.0
@@ -28,7 +30,6 @@ require (
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
