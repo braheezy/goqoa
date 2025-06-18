@@ -48,7 +48,9 @@ jobs:
           go-version: "1.21"
 
       - name: Install dependencies
-        run: go get ./...
+        run: |
+          go get ./...
+          brew install libvorbis
 
       - name: Build
         run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-mac -v .
@@ -78,7 +80,7 @@ jobs:
         run: |
           go get ./...
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev
+          sudo apt-get install -y libasound2-dev libvorbis-dev
 
       - name: Build
         run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .
