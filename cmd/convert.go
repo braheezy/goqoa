@@ -283,8 +283,16 @@ func convertAudio(inputFile, outputFile string) {
 	case ".mp3":
 		encodeMp3(outputFile, q, decodedData)
 	case ".ogg":
-		logger.Info("Output format is OGG")
-		logger.Fatal("And that's not supported yet...")
+		logger.Info("Encoding to OGG using libvorbis")
+		f, err := os.Create(outputFile)
+		if err != nil {
+			log.Fatalf("Error creating OGG file: %v", err)
+		}
+		defer f.Close()
+
+		if err := encodeVorbisToOgg(f, decodedData, int(q.SampleRate), int(q.Channels)); err != nil {
+			log.Fatalf("Error encoding OGG: %v", err)
+		}
 	case ".flac":
 		logger.Info("Output format is FLAC")
 		flacFile, err := os.Create(outputFile)
