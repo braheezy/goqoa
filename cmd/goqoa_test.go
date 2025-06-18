@@ -48,6 +48,11 @@ func TestConvertCmd(t *testing.T) {
 			outputFormat: "qoa",
 		},
 		{
+			audioFormat:  "ogg",
+			inputFormat:  "qoa",
+			outputFormat: "ogg",
+		},
+		{
 			audioFormat:  "flac",
 			inputFormat:  "flac",
 			outputFormat: "qoa",
@@ -71,7 +76,13 @@ func TestConvertCmd(t *testing.T) {
 
 	for _, tc := range tt {
 
+		// TODO: On newer macos, the output ogg is different than other OSes. Why?
 		if runtime.GOOS == "darwin" && tc.inputFormat == "ogg" {
+			continue
+		}
+
+		// Windows not support for ogg output
+		if runtime.GOOS == "windows" && tc.outputFormat == "ogg" {
 			continue
 		}
 
