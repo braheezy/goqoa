@@ -80,7 +80,7 @@ jobs:
         run: |
           go get ./...
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libvorbis-dev
+          sudo apt-get install -y libasound2-dev
 
       - name: Build
         run: go build -ldflags="-s -w" -gcflags=all="-l -B" -trimpath -buildvcs=false -o goqoa-linux -v .

@@ -11,8 +11,8 @@ A CLI tool for working with audio files following the [QOA Format Specification]
 Features:
 
 - `convert` WAV, FLAC, OGG, or MP3 files to QOA
-- `convert` QOA files to WAV, MP3, FLAC, or OGG
-- All conversions are in pure Go, except OGG encoding (requires system libvorbis)
+- `convert` QOA files to WAV, MP3, FLAC, or OGG (MacOS only)
+- All conversions are in pure Go, though OGG encoding requires system libvorbis
 - `play` QOA file(s)
 - Pre-built binaries for Linux, Windows, and Mac
 
@@ -48,9 +48,9 @@ $env:Path += ";$HOME\goqoa"
 Otherwise, install system prerequisites (for `oto` playback and OGG encoding) for your platform:
 
     # Fedora
-    yum install gcc alsa-lib-devel libvorbis-devel
+    yum install gcc alsa-lib-devel
     # Debian
-    apt-get install gcc pkg-config libasound2-dev libvorbis-dev
+    apt-get install gcc pkg-config libasound2-dev
     # macOS (Homebrew)
     brew install libvorbis
 

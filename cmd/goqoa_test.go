@@ -81,8 +81,8 @@ func TestConvertCmd(t *testing.T) {
 			continue
 		}
 
-		// Windows not support for ogg output
-		if runtime.GOOS == "windows" && tc.outputFormat == "ogg" {
+		// Ogg encoding only support on macos
+		if runtime.GOOS != "darwin" && tc.audioFormat == "ogg" {
 			continue
 		}
 
