@@ -12,7 +12,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/ebitengine/oto/v3 v3.4.0
-	github.com/ebitengine/purego v0.9.0
+	github.com/ebitengine/purego v0.9.1
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
 	github.com/hajimehoshi/ebiten/v2 v2.9.3
